@@ -1,0 +1,35 @@
+/* Import the Permanent Marker font for handwritten style */
+@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
+
+/* Style for our replacement "Gulf of Mexico" text */
+.gulf-sharpie-text {
+  font-family: 'Permanent Marker', cursive !important;
+  font-size: 1.35em !important;
+  font-weight: normal !important;
+  color: #000066 !important; /* Dark blue like Sharpie ink */
+  text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.7) !important;
+  letter-spacing: 0.5px !important;
+  transform: rotate(-1.5deg) !important;
+  display: inline-block !important;
+  position: relative !important;
+  z-index: 1000 !important; /* Ensure our text is on top */
+  padding: 0 3px !important;
+  margin: -2px 0 !important;
+  background: rgba(255, 255, 255, 0.7) !important; /* Slight background to make text more visible */
+  border-radius: 3px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+  pointer-events: none !important; /* Don't interfere with map interactions */
+  /* Ensure we override Google's text styles */
+  line-height: 1.2 !important;
+  white-space: nowrap !important;
+}
+
+/* Special override for dark mode */
+@media (prefers-color-scheme: dark) {
+  .gulf-sharpie-text {
+    color: #6699ff !important; /* Lighter blue for dark mode */
+    background: rgba(0, 0, 0, 0.6) !important;
+    text-shadow: 0px 0px 2px rgba(255, 255, 255, 0.5) !important;
+  }
+}
+

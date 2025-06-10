@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "#wokemaps",
+  "version": "0.9",
+  "description": "Do you not want to call it the Gulf of America? This extension modifies Google Maps to restore a few progressive labels as overlays of some locations and points of interest, for your relief and enjoyment.",
+  "permissions": ["scripting"],
+  "host_permissions": [
+    "*://*.google.com/maps/*"
+  ],
+  "action": {
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
+    },
+    "default_title": "#wokemaps"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.google.com/maps/*"],
+      "js": ["labels.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  }
+}
+
