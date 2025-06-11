@@ -18,8 +18,13 @@
   "content_scripts": [
     {
       "matches": ["*://*.google.com/maps/*"],
+      "world": "MAIN",
+      "js": ["content-page.js"],
+      "run_at": "document_start"
+    }, {
+      "matches": ["*://*.google.com/maps/*"],
       "js": ["labels.js", "content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_start"
     }
   ],
   "icons": {

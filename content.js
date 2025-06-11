@@ -2,9 +2,11 @@
 // Tries to respond to Google Maps rendering at certain locations, and overwrites with
 // labels more desirable to the user.
 
-console.log("Woke Map extension initialized (final implementation)");
+console.log("wokemaps: extension initializing");
 
 (function() {
+  const HIGHLIGHT_GRID = false;
+  const DEBUG_ONE_LABEL = false;
 
   // Track state
   let mapCanvas = null;
@@ -13,7 +15,6 @@ console.log("Woke Map extension initialized (final implementation)");
   let lastCenter = null;
   let lastZoom = 0;
   let observer = null;
-  let drawLabelsTimeout = null;
 
   // Transform tracking
   let canvasTransform = { translateX: 0, translateY: 0, scale: 1 };
@@ -24,25 +25,176 @@ console.log("Woke Map extension initialized (final implementation)");
   let transformMultiplier = 1;
   let parentIsZero = false;
 
-  // Load custom handwritten font
+  // Pre-rendered labels system
+  let labelsCanvas = null;
+  let labelsContext = null;
+  let preRenderedLabels = [];
   let fontLoaded = false;
+
+  // Load custom handwritten font
   function loadCustomFont() {
     const fontFace = new FontFace('Permanent Marker', 'url(https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQMWimMp004La2Cf5b6jlg.woff2)');
     fontFace.load().then(font => {
       document.fonts.add(font);
       fontLoaded = true;
       console.log("Custom font loaded successfully");
+      // Re-render labels with proper font
+      initializeLabelsCanvas();
     }).catch(err => {
       console.error("Failed to load font:", err);
+      // Initialize with fallback font
+      initializeLabelsCanvas();
     });
   }
   loadCustomFont();
 
-  // Initialize immediately
-  function initialize() {
-    // Detect retina display and set appropriate parameters
-    detectDisplayType();
+  // Draw a label at the specified position and return its dimensions
+  function drawLabelAtPosition(context, x, y, text, color, scale, rotation = -1.5) {
+    const fontSize = 24 * scale;
 
+    // Set font
+    if (fontLoaded) {
+      context.font = `bold ${fontSize}px "Permanent Marker", Arial, sans-serif`;
+    } else {
+      context.font = `bold ${fontSize}px Arial, sans-serif`;
+    }
+
+    context.textAlign = 'center';
+    context.textBaseline = 'middle';
+
+    // Measure text
+    const lines = text.split('\n');
+    const textWidth = lines.reduce(
+        (accumulator, line) => Math.max(accumulator, context.measureText(line).width),
+        0
+    );
+    const lineHeight = fontSize + 6;
+    const textHeight = lineHeight * lines.length;
+    const padding = 8;
+
+    const totalWidth = textWidth + padding * 2;
+    const totalHeight = textHeight + padding * 2;
+
+    // Draw background
+    context.fillStyle = 'rgba(255, 255, 255, 0.70)';
+    context.fillRect(
+        x - totalWidth / 2,
+        y - totalHeight / 2,
+        totalWidth,
+        totalHeight
+    );
+
+    // Draw border
+    context.strokeStyle = 'rgba(0, 0, 0, 0)';
+    context.lineWidth = 1;
+    context.strokeRect(
+        x - totalWidth / 2,
+        y - totalHeight / 2,
+        totalWidth,
+        totalHeight
+    );
+
+    // Draw text with rotation
+    context.save();
+    context.translate(x, y);
+    context.rotate(rotation * Math.PI / 180);
+
+    context.fillStyle = color;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      context.fillText(line, 0, (i - (lines.length - 1) / 2.0) * lineHeight);
+    }
+
+    context.restore();
+
+    return { width: totalWidth, height: totalHeight };
+  }
+
+  // Initialize the offscreen labels canvas
+  function initializeLabelsCanvas() {
+    // Create a large offscreen canvas for pre-rendered labels
+    labelsCanvas = document.createElement('canvas');
+    labelsCanvas.width = 512;
+    labelsCanvas.height = 2048;
+    labelsContext = labelsCanvas.getContext('2d');
+
+    // Clear previous labels
+    preRenderedLabels = [];
+    labelsContext.clearRect(0, 0, labelsCanvas.width, labelsCanvas.height);
+
+    let currentY = 50;
+    const spacing = 10;
+
+    // Pre-render each label
+    LABELS.forEach((label, index) => {
+      if (DEBUG_ONE_LABEL && index > 0) return;
+      const renderedLabel = preRenderLabel(label, currentY);
+      if (renderedLabel) {
+        preRenderedLabels.push({
+          ...label,
+          ...renderedLabel,
+          index
+        });
+        currentY += renderedLabel.height + spacing;
+      }
+    });
+
+    console.log(`Pre-rendered ${preRenderedLabels.length} labels`);
+  }
+
+  // Pre-render a single label to the offscreen canvas
+  function preRenderLabel(label, startY) {
+    const scale = label.scale || 1;
+    const centerX = labelsCanvas.width / 2;
+    const centerY = startY + 100; // Estimate center, will be adjusted
+
+    // Draw the label and get its dimensions
+    const dimensions = drawLabelAtPosition(
+        labelsContext,
+        centerX,
+        centerY,
+        label.text,
+        label.color,
+        scale,
+        -1.5 // rotation
+    );
+
+    // Check if we have enough space
+    if (startY + dimensions.height > labelsCanvas.height) {
+      console.warn(`Not enough space for label: ${label.text}`);
+      return null;
+    }
+
+    // Adjust the actual center Y position
+    const actualCenterY = startY + dimensions.height / 2;
+
+    // Clear and redraw at the correct position
+    labelsContext.clearRect(
+        centerX - dimensions.width / 2 - 10,
+        centerY - dimensions.height / 2 - 10,
+        dimensions.width + 20,
+        dimensions.height + 20
+    );
+
+    drawLabelAtPosition(
+        labelsContext,
+        centerX,
+        actualCenterY,
+        label.text,
+        label.color,
+        scale,
+        -1.5
+    );
+
+    return {
+      canvasX: centerX - dimensions.width / 2,
+      canvasY: actualCenterY - dimensions.height / 2,
+      width: dimensions.width,
+      height: dimensions.height
+    };
+  }
+
+  function findMapRenderingCanvas() {
     // Find ONLY the map rendering canvas that's tile-based
     const canvases = document.querySelectorAll('canvas');
     let mapRenderingCanvas = null;
@@ -74,27 +226,37 @@ console.log("Woke Map extension initialized (final implementation)");
         }
       }
     }
+    return mapRenderingCanvas;
+  }
 
-    // NO FALLBACK - only use tile-based canvas or retry
-    if (mapRenderingCanvas) {
-      mapCanvas = mapRenderingCanvas;
-      mapContext = mapCanvas.getContext('2d');
-      canvasParent = mapCanvas.parentElement;
+  // Initialize immediately
+  function initialize() {
+    // Detect retina display and set appropriate parameters
+    detectDisplayType();
 
-      console.log(`Using canvas: ${mapCanvas.width}x${mapCanvas.height}`);
-      console.log(`Display type: Tile size ${tileSize}px, Transform multiplier ${transformMultiplier}x`);
-
-      // Get initial values
-      updateCanvasTransform();
-      updateParentTransform();
-      updatePositionFromUrl();
-
-      // Start observing and drawing
-      setupObserver();
-    } else {
+    // Try to find the map rendering canvas. If we can't, try again after a short delay
+    // in the hopes that further initialization yields the right canvas.
+    const mapRenderingCanvas = findMapRenderingCanvas();
+    if (!mapRenderingCanvas) {
       console.log("No tile-based canvas found, retrying in 500ms");
       setTimeout(initialize, 500);
+      return;
     }
+
+    mapCanvas = mapRenderingCanvas;
+    mapContext = mapCanvas.getContext('2d');
+    canvasParent = mapCanvas.parentElement;
+
+    console.log(`Using canvas: ${mapCanvas.width}x${mapCanvas.height}`);
+    console.log(`Display type: Tile size ${tileSize}px, Transform multiplier ${transformMultiplier}x`);
+
+    // Get initial values
+    updateCanvasTransform();
+    updateParentTransform();
+    updatePositionFromUrl();
+
+    // Start observing and drawing
+    setupObserver();
   }
 
   // Detect display type (retina vs standard) and set parameters
@@ -153,7 +315,6 @@ console.log("Woke Map extension initialized (final implementation)");
     if (grandParent) {
       const grandRect = grandParent.getBoundingClientRect();
       if (grandRect.width > 0 && grandRect.height > 0) {
-        //console.log(`Using grandparent dimensions: ${grandRect.width}×${grandRect.height}`);
         return { width: Math.round(grandRect.width), height: Math.round(grandRect.height) };
       }
     }
@@ -162,63 +323,186 @@ console.log("Woke Map extension initialized (final implementation)");
     return { width: 0, height: 0 };
   }
 
-  function setupMapRedrawListener() {
-    // TODO: this would need to be done via a background page and the `chrome.scripting` API
-    // to run in the context of the web page.
-    // Maybe for speed, this whole script gets injected into the page?
-    const injectedScript = `
-(function() {
-  // Store the original drawImage function
-  const originalDrawImage = CanvasRenderingContext2D.prototype.drawImage;
-  
-  // Debounce variables
-  let debounceTimeout = null;
-  
-  // Override the drawImage prototype
-  CanvasRenderingContext2D.prototype.drawImage = function(...args) {
-    // Call the original drawImage function first
-    const result = originalDrawImage.apply(this, args);
-    
-    // Clear any existing timeout
-    if (debounceTimeout) {
-      clearTimeout(debounceTimeout);
-    }
-    
-    // Set a new debounced timeout
-    debounceTimeout = setTimeout(() => {
-      // Send a custom event that the content script can listen for
-      window.dispatchEvent(new CustomEvent('canvasDrawImageCalled', {
-        detail: {
-          timestamp: Date.now(),
-        }
-      }));
-      
-      // Reset the timeout variable
-      debounceTimeout = null;
-    }, 1);
-    
-    return result;
-  };  
-})();
-`;
+  /**
+   * Respond to a canvas image being redrawn.
+   *
+   * @param e
+   */
+  function onCanvasImageDrawn(e) {
+    if (!mapContext || !lastCenter || !preRenderedLabels.length) return;
+    // Ideally, for a flicker-free experience, we could redraw our label(s) immediately.
+    // However, the state required to keep `canvasTransform` accurate (the transform styling of the
+    // canvas element) is not yet up to date, so we can't map the tile coordinates to the proper place
+    // in the canvas. When this is wrong, it looks like the label showing up offset by 1 tile
+    // in some direction. So, we wait one event cycle after which we assume Maps has updated the
+    // transform.
+    setTimeout(() => onCanvasImageDrawnDelayed(e.detail.extent, e.detail.transform), 0);
+  }
 
-    // Create and inject the script element
-    const script = document.createElement('script');
-    script.textContent = injectedScript;
-    script.onload = function() {
-      // Remove the script element after execution to keep the DOM clean
-      this.remove();
+  function onCanvasImageDrawnDelayed(extent, transform) {
+    const { dx, dy, dw, dh } = extent;
+
+    // Some image draw requests are for tiles, others are for labels.
+    const isTile = dw === tileSize && dh === tileSize;
+
+    // Some image draw requests are for a region that is the whole canvas.
+    // Don't respond to those.
+    const isCanvas = dw > tileSize * 3 && dh > tileSize * 3;
+    if (isCanvas) return;
+
+    const topLeft = applyCanvasTransform(dx, dy, transform);
+    const bottomRight = applyCanvasTransform(dx + dw, dy + dh, transform);
+    const imageCanvasBounds = {
+      left: topLeft.x,
+      right: bottomRight.x,
+      top: topLeft.y,
+      bottom: bottomRight.y,
     };
 
-    // Inject at the beginning of the document to ensure it runs before other scripts
-    (document.head || document.documentElement).appendChild(script);
+    if (HIGHLIGHT_GRID && isTile) {
+      mapContext.save();
+      mapContext.strokeStyle = 'rgba(200, 255, 200, 100)';
+      mapContext.lineWidth = 3;
+      mapContext.strokeRect(topLeft.x, topLeft.y, dw, dh);
+      mapContext.restore();
+    }
 
-    // Listen for the custom event from the injected script
-    window.addEventListener('canvasDrawImageCalled', function(event) {
-      drawLabels();
+    // Filter labels by zoom level first
+    const zoomFilteredLabels = preRenderedLabels.filter(label =>
+        lastZoom >= label.minZoom && lastZoom <= label.maxZoom
+    );
+
+    // Process each potentially visible label
+    zoomFilteredLabels.forEach(label => {
+      // Convert label's lat/lng to canvas pixel coordinates.
+      // Requires `canvasTransform` to be up to date.
+      const labelCanvasPos = latLngToCanvasPixel(label.lat, label.lng);
+      if (!labelCanvasPos) return;
+
+      // Calculate label bounds in canvas coordinates
+      const labelCanvasBounds = {
+        left: labelCanvasPos.x - label.width / 2,
+        right: labelCanvasPos.x + label.width / 2,
+        top: labelCanvasPos.y - label.height / 2,
+        bottom: labelCanvasPos.y + label.height / 2
+      };
+
+      // Check for overlap and get overlap details
+      const overlap = calculateImageLabelOverlap(
+          imageCanvasBounds,
+          labelCanvasBounds,
+      );
+
+      if (overlap) {
+        //console.log("Found overlap", imageCanvasBounds, labelCanvasBounds, overlap);
+        drawLabelOverlap(label, overlap, transform);
+      }
     });
+  }
 
-    console.log('Canvas drawImage override initialized');
+  // Convert lat/lng to canvas pixel coordinates using current map state
+  function latLngToCanvasPixel(lat, lng) {
+    if (!lastCenter) return null;
+
+    // Get the projected pixel position for both the label and map center
+    const labelPixel = googleMapsLatLngToPoint(lat, lng, lastZoom, tileSize);
+    const centerPixel = googleMapsLatLngToPoint(lastCenter.lat, lastCenter.lng, lastZoom, tileSize);
+
+    if (!labelPixel || !centerPixel) return null;
+
+    // Calculate offset from center in projected coordinates
+    const worldOffsetX = labelPixel.x - centerPixel.x;
+    const worldOffsetY = labelPixel.y - centerPixel.y;
+
+    // Convert to canvas coordinates using the same logic as drawLabel
+    const canvasCenterX = mapCanvas.width / 2;
+    const canvasCenterY = mapCanvas.height / 2;
+
+    const parentDimensions = getParentDimensions();
+    const tileAlignmentX = -tileSize + (parentDimensions.width % (tileSize / 2));
+    const tileAlignmentY = -tileSize + (parentDimensions.height % (tileSize / 2));
+
+    const x = canvasCenterX + worldOffsetX - (canvasTransform.translateX * transformMultiplier) + tileAlignmentX;
+    const y = canvasCenterY + worldOffsetY - (canvasTransform.translateY * transformMultiplier) + tileAlignmentY;
+
+    return { x, y };
+  }
+
+  // Calculate overlap between label and tile bounds
+  function calculateImageLabelOverlap(imageBounds, labelBounds) {
+    // Check if rectangles overlap first
+    if (labelBounds.right < imageBounds.left ||
+        imageBounds.right < labelBounds.left ||
+        labelBounds.bottom < imageBounds.top ||
+        imageBounds.bottom < labelBounds.top) {
+      return null; // No overlap
+    }
+
+    // Calculate intersection in canvas coordinates
+    const canvasRegion = {
+      left: Math.max(labelBounds.left, imageBounds.left),
+      right: Math.min(labelBounds.right, imageBounds.right),
+      top: Math.max(labelBounds.top, imageBounds.top),
+      bottom: Math.min(labelBounds.bottom, imageBounds.bottom)
+    };
+
+    const labelRegion = {
+      left: canvasRegion.left - labelBounds.left,
+      right: canvasRegion.right - labelBounds.left,
+      top: canvasRegion.top - labelBounds.top,
+      bottom: canvasRegion.bottom - labelBounds.top,
+    };
+
+    return { canvasRegion, labelRegion };
+  }
+
+  // Draw label overlap directly to canvas coordinates
+  function drawLabelOverlap(label, overlap, transform) {
+    if (!labelsCanvas || !mapContext) return;
+
+    const { canvasRegion, labelRegion } = overlap;
+
+    // Calculate source rectangle in the labels canvas (using label overlap coordinates)
+    const srcX = label.canvasX + labelRegion.left;
+    const srcY = label.canvasY + labelRegion.top;
+    const srcW = labelRegion.right - labelRegion.left;
+    const srcH = labelRegion.bottom - labelRegion.top;
+
+    // Destination is the canvas area.
+    const destX = canvasRegion.left;
+    const destY = canvasRegion.top;
+    const destW = canvasRegion.right - canvasRegion.left;
+    const destH = canvasRegion.bottom - canvasRegion.top;
+
+    // Draw the label portion
+    try {
+      mapContext.save();
+      // TODO: this may be unnecessary if we are NOT drawing "immediately" in response to Maps redraw.
+      // But it is important we draw with no transform.
+      mapContext.resetTransform();
+      mapContext.drawImage(
+          labelsCanvas,
+          srcX, srcY, srcW, srcH,
+          destX, destY, destW, destH
+      );
+      mapContext.restore();
+    } catch (e) {
+      console.error("Error drawing label overlap:", e);
+    }
+  }
+
+  // Apply transform to convert canvas coordinates
+  function applyCanvasTransform(x, y, transform) {
+    const { a, b, c, d, e, f } = transform;
+    return {
+      x: a * x + c * y + e,
+      y: b * x + d * y + f
+    };
+  }
+
+  function setupMapRedrawListener() {
+    window.addEventListener('wokemaps_canvasDrawImageCalled', onCanvasImageDrawn);
+    console.log('wokemaps: Canvas drawImage listener initialized');
   }
 
   // Set up MutationObserver to watch for map changes
@@ -240,8 +524,7 @@ console.log("Woke Map extension initialized (final implementation)");
       });
     }
 
-    // Also listen for user interactions that likely change the map
-    mapCanvas.addEventListener('mousemove', handleMapRedraw);
+    // Listen for user interactions that likely change the map
     document.addEventListener('mouseup', handleMapInteraction);
     document.addEventListener('wheel', handleMapInteraction);
     window.addEventListener('resize', handleMapInteraction);
@@ -249,11 +532,13 @@ console.log("Woke Map extension initialized (final implementation)");
     // Watch for URL changes (only update center when parent transform is zero)
     setupUrlChangeDetection();
 
+    // Watch for when map tiles are redrawn
+    setupMapRedrawListener();
+
     // Draw initial labels
     setTimeout(() => {
       updateCanvasTransform();
       updateParentTransform();
-      drawLabels();
     }, 500);
 
     console.log("MutationObserver and event listeners set up");
@@ -287,7 +572,8 @@ console.log("Woke Map extension initialized (final implementation)");
     }
 
     if (shouldRedraw) {
-      drawLabels();
+      // We don't draw in response to anything other than tile redraws now.
+      //drawAllLabels();
     }
   }
 
@@ -390,23 +676,11 @@ console.log("Woke Map extension initialized (final implementation)");
 
   // Handle map interactions (mouse, wheel, etc.)
   function handleMapInteraction() {
-    // Update transforms and redraw after interaction
+    // Update transforms
     setTimeout(() => {
       updateCanvasTransform();
       updateParentTransform();
-      drawLabels();
     }, 50);
-  }
-
-  // Handle possible map redraws
-  let mapRedrawTimeout = null;
-  function handleMapRedraw() {
-    if (!mapRedrawTimeout) {
-      mapRedrawTimeout = setTimeout(() => {
-        drawLabels();
-        mapRedrawTimeout = null;
-      }, 0);
-    }
   }
 
   // Set up URL change detection (but only update center when parent is zero)
@@ -424,8 +698,6 @@ console.log("Woke Map extension initialized (final implementation)");
           console.log("Parent transform is zero - updating center from URL");
           updatePositionFromUrl();
         }
-
-        drawLabels();
       }
     }, 500);
   }
@@ -458,19 +730,10 @@ console.log("Woke Map extension initialized (final implementation)");
         lastZoom = Math.round(zoom);
       }
     }
-
-    // If we couldn't get from URL, use defaults
-    if (!lastCenter) {
-      lastCenter = { lat: 25.334537, lng: -90.054921 }; // Default to Gulf of Mexico
-    }
-
-    if (!lastZoom) {
-      lastZoom = 6;
-    }
   }
 
-  // Draw all labels on the canvas
-  function drawLabels() {
+  // Draw all labels on the canvas (fallback method)
+  function drawAllLabels() {
     if (!mapCanvas || !mapContext || !lastCenter) return;
 
     const zoom = lastZoom;
@@ -484,7 +747,7 @@ console.log("Woke Map extension initialized (final implementation)");
     });
   }
 
-  // Draw a single label
+  // Draw a single label (fallback method)
   function drawLabel(lat, lng, text, color, scale) {
     // Calculate the pixel position using the Mercator projection
     const labelPixel = googleMapsLatLngToPoint(lat, lng, lastZoom, tileSize);
@@ -511,74 +774,18 @@ console.log("Woke Map extension initialized (final implementation)");
     const tileAlignmentX = -tileSize + (parentDimensions.width % (tileSize / 2));
     const tileAlignmentY = -tileSize + (parentDimensions.height % (tileSize / 2));
 
+    // This is the "center point" of the label.
     const x = canvasCenterX + worldOffsetX - (canvasTransform.translateX * transformMultiplier) + tileAlignmentX;
     const y = canvasCenterY + worldOffsetY - (canvasTransform.translateY * transformMultiplier) + tileAlignmentY;
 
     // Check if on screen (with margin)
+    //xcxc this necessary?
     if (x < -100 || x > mapCanvas.width + 100 || y < -100 || y > mapCanvas.height + 100) {
       return;
     }
 
-    // Draw the label with handwritten style
-    mapContext.save();
-
-    // Use custom font if loaded, otherwise fall back
-    const fontSize = 24 * scale;
-    if (fontLoaded) {
-      mapContext.font = `bold ${fontSize}px "Permanent Marker", Arial, sans-serif`;
-    } else {
-      mapContext.font = `bold ${fontSize}px Arial, sans-serif`;
-    }
-
-    // Set alignment
-    mapContext.textAlign = 'center';
-    mapContext.textBaseline = 'middle';
-
-    // Measure text
-    const lines = text.split('\n');
-    const textWidth = lines.reduce(
-        (accumulator, line) => Math.max(accumulator, mapContext.measureText(line).width),
-        0);
-    const lineHeight = fontSize + 6;
-    const textHeight = lineHeight * lines.length;
-    const padding = 8;
-
-    // Draw background with rounded corners effect
-    //mapContext.fillStyle = 'rgba(255, 255, 255, 0.85)';
-    mapContext.fillStyle = 'rgba(255, 255, 255, 0.85)';
-    mapContext.fillRect(
-        x - textWidth / 2 - padding,
-        y - textHeight / 2 - padding,
-        textWidth + padding * 2,
-        textHeight + padding * 2
-    );
-
-    // // Add subtle border
-    //mapContext.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-    mapContext.strokeStyle = 'rgba(0, 0, 0, 0)';
-    mapContext.lineWidth = 1;
-    mapContext.strokeRect(
-        x - textWidth / 2 - padding,
-        y - textHeight / 2 - padding,
-        textWidth + padding * 2,
-        textHeight + padding * 2
-    );
-
-    // Apply slight rotation for handwritten effect
-    mapContext.translate(x, y);
-    mapContext.rotate(-1.5 * Math.PI / 180); // -1.5 degrees
-
-    // Draw text with shadow
-    // mapContext.fillStyle = 'rgba(0, 0, 0, 0.1)';
-    // mapContext.fillText(text, 1, 1); // Shadow
-
-    mapContext.fillStyle = color;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      mapContext.fillText(line, 0, (i - (lines.length - 1) / 2.0) * lineHeight); // Main text
-    }
-
-    mapContext.restore();
+    // Use the shared label drawing function
+    drawLabelAtPosition(mapContext, x, y, text, color, scale, -1.5);
   }
 
   // Accurate Google Maps style projection with tile size parameter
@@ -611,7 +818,6 @@ console.log("Woke Map extension initialized (final implementation)");
 
   // Start the process
   initialize();
-  // TODO: setupMapRedrawListener(); // modifies page JS env, only ever do once
 
   // Periodically check if we need to reinitialize
   setInterval(() => {
