@@ -23,8 +23,14 @@
       "run_at": "document_start"
     }, {
       "matches": ["*://*.google.com/maps/*"],
-      "js": ["labels.js", "content.js"],
+      "js": ["content.js"],
       "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["labels.json"],
+      "matches": ["*://*.google.com/*"]
     }
   ],
   "icons": {
