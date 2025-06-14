@@ -8,6 +8,7 @@ console.log("wokemaps: extension initializing");
   const HIGHLIGHT_GRID = false;
   const DEBUG_ONE_LABEL = false;
   const LABEL_VERSION = 1;
+  const USE_LABEL_REMOTE = false;
   const USE_LABEL_CACHE = false;
 
   // Track state
@@ -33,6 +34,18 @@ console.log("wokemaps: extension initializing");
   let preRenderedLabels = [];
   let fontLoaded = false;
 
+  function loadCachedLabels() {
+
+  }
+
+  function loadBuiltinLabels() {
+
+  }
+
+  async function loadRemoteLabels() {
+
+  }
+
   async function loadLabels() {
     console.log("wokemaps: Loading labels...");
 
@@ -50,6 +63,10 @@ console.log("wokemaps: extension initializing");
       if (USE_LABEL_CACHE && cachedLabels && cacheExpiry && now < parseInt(cacheExpiry)) {
         console.log("wokemaps: Using cached labels");
         return JSON.parse(cachedLabels);
+      }
+
+      if (!USE_LABEL_REMOTE) {
+        throw new Error('USE_LABEL_REMOTE is off, not fetching');
       }
 
       // Cache expired or doesn't exist, fetch from remote
@@ -75,7 +92,6 @@ console.log("wokemaps: extension initializing");
 
       console.log(`wokemaps: Successfully loaded and cached ${remoteLabels.length} labels from remote source`);
       return remoteLabels;
-
     } catch (error) {
       console.warn(`wokemaps: Failed to load remote labels: ${error.message}`);
 
@@ -410,6 +426,77 @@ console.log("wokemaps: extension initializing");
     return { width: 0, height: 0 };
   }
 
+  // Track tile rendering sequences
+  let firstTileInSequence = null;
+  let previousFirstTileInSequence = null;
+  let sequenceInProgress = false;
+  let sequenceMayHaveNewTransform = false;
+
+  function getTileContentHash(ctx, transform, dx, dy, dw, dh) {
+    let hash = 0x9e3779b9; // Golden ratio based seed
+
+    // Only do 1 out of every `prime` pixels to do a "random" sampling of the tile,
+    // to avoid doing too much work.
+    const prime = 13; // Prime increment (must be < tileSize)
+
+    // Get all pixel data at once. `getImageData` does not use context's
+    // current transform.
+    const topLeft = applyContextTransform(dx, dy, transform);
+    const imageData = ctx.getImageData(topLeft.x, topLeft.y, dw, dh);
+    const data = imageData.data; // RGBA array
+
+    let x = 0;
+    let y = 0;
+    let samplesCount = 0;
+    const maxSamples = Math.floor((dw * dh) / prime); // Rough estimate to avoid infinite loops
+
+    while (y < dh && samplesCount < maxSamples) {
+      // Calculate index in the RGBA array
+      const pixelIndex = (y * dw + x) * 4; // 4 bytes per pixel (RGBA)
+
+      if (pixelIndex + 3 < data.length) {
+        const r = data[pixelIndex];
+        const g = data[pixelIndex + 1];
+        const b = data[pixelIndex + 2];
+        const a = data[pixelIndex + 3];
+
+        // Combine RGBA into hash using bit shifting and XOR
+        hash ^= (r << 24) | (g << 16) | (b << 8) | a;
+        // Rotate hash to avoid patterns
+        hash = (hash << 1) | (hash >>> 31);
+        samplesCount++;
+      }
+
+      // Increment by prime
+      x += prime;
+
+      // Wrap to next row if we exceed width
+      if (x >= dw) {
+        x -= dw;
+        y += 1;
+      }
+    }
+    return hash;
+  }
+
+  function recordTileInSequence(extent, transform) {
+    if (firstTileInSequence === null) {
+      // Only need record the first tile
+      const {dx, dy, dw, dh} = extent;
+      const hash = getTileContentHash(mapContext, transform, dx, dy, dw, dh);
+      firstTileInSequence = hash >>> 0;
+      sequenceMayHaveNewTransform = firstTileInSequence !== previousFirstTileInSequence;
+    }
+  }
+
+  function endTileSequence() {
+    if (firstTileInSequence !== null) {
+      previousFirstTileInSequence = firstTileInSequence;
+      firstTileInSequence = null;
+      // Don't reset `sequenceMayHaveNewTransform` as the labels come after the tiles / canvas
+    }
+  }
+
   /**
    * Respond to a canvas image being redrawn.
    *
@@ -417,28 +504,50 @@ console.log("wokemaps: extension initializing");
    */
   function onCanvasImageDrawn(e) {
     if (!mapContext || !lastCenter || !preRenderedLabels.length) return;
-    // Ideally, for a flicker-free experience, we could redraw our label(s) immediately.
-    // However, the state required to keep `canvasTransform` accurate (the transform styling of the
-    // canvas element) is not yet up to date, so we can't map the tile coordinates to the proper place
-    // in the canvas. When this is wrong, it looks like the label showing up offset by 1 tile
-    // in some direction. So, we wait one event cycle after which we assume Maps has updated the
-    // transform.
-    setTimeout(() => onCanvasImageDrawnDelayed(e.detail.extent, e.detail.transform), 0);
+    const extent = e.detail.extent;
+    const transform = e.detail.transform;
+    const {dx, dy, dw, dh} = extent;
+    let shouldDelay = false;
+
+    // Image draw requests are typically for tiles (square), for labels (smaller), or
+    // for the whole canvas.
+    const isTile = dw === tileSize && dh === tileSize;
+    // TODO: is there a better way, maybe just compare to "whole canvas" size?
+    // don't want to break on small windows / assumptions
+    const isCanvas = dw > tileSize * 2 && dh > tileSize * 2;
+
+    if (isCanvas) {
+      // Large canvas render - end current sequence, and no need to try to redraw anything.
+      endTileSequence();
+      return;
+    }
+
+    // Check if we should start a new sequence
+    if (isTile && !sequenceInProgress) {
+      recordTileInSequence(extent, transform);
+    }
+
+    if (sequenceMayHaveNewTransform) {
+      // We are getting a different first tile, which means the tileset has changed, we might have
+      // panned or zoomed. But our transform may not have been updated, so just to be sure we delay
+      // until the transform changes. This may cause flicker but it's much preferable to drawing
+      // in the wrong place.
+      shouldDelay = true;
+    }
+
+    if (shouldDelay) {
+      setTimeout(() => renderOverlappingLabels(extent, transform), 1);
+    } else {
+      renderOverlappingLabels(extent, transform);
+    }
   }
 
-  function onCanvasImageDrawnDelayed(extent, transform) {
-    const { dx, dy, dw, dh } = extent;
-
-    // Some image draw requests are for tiles, others are for labels.
+  function renderOverlappingLabels(extent, transform) {
+    const {dx, dy, dw, dh} = extent;
     const isTile = dw === tileSize && dh === tileSize;
 
-    // Some image draw requests are for a region that is the whole canvas.
-    // Don't respond to those.
-    const isCanvas = dw > tileSize * 3 && dh > tileSize * 3;
-    if (isCanvas) return;
-
-    const topLeft = applyCanvasTransform(dx, dy, transform);
-    const bottomRight = applyCanvasTransform(dx + dw, dy + dh, transform);
+    const topLeft = applyContextTransform(dx, dy, transform);
+    const bottomRight = applyContextTransform(dx + dw, dy + dh, transform);
     const imageCanvasBounds = {
       left: topLeft.x,
       right: bottomRight.x,
@@ -448,6 +557,7 @@ console.log("wokemaps: extension initializing");
 
     if (HIGHLIGHT_GRID && isTile) {
       mapContext.save();
+      mapContext.resetTransform();
       mapContext.strokeStyle = 'rgba(200, 255, 200, 100)';
       mapContext.lineWidth = 3;
       mapContext.strokeRect(topLeft.x, topLeft.y, dw, dh);
@@ -481,7 +591,7 @@ console.log("wokemaps: extension initializing");
       );
 
       if (overlap) {
-        //console.log("Found overlap", imageCanvasBounds, labelCanvasBounds, overlap);
+        console.log("Drawing label overlap", imageCanvasBounds, labelCanvasBounds, overlap);
         drawLabelOverlap(label, overlap, transform);
       }
     });
@@ -565,7 +675,8 @@ console.log("wokemaps: extension initializing");
     try {
       mapContext.save();
       // TODO: this may be unnecessary if we are NOT drawing "immediately" in response to Maps redraw.
-      // But it is important we draw with no transform.
+      // But it is important we draw with no transform because the parameters we are passing are
+      // relative to the origin of the canvas.
       mapContext.resetTransform();
       mapContext.drawImage(
           labelsCanvas,
@@ -579,7 +690,7 @@ console.log("wokemaps: extension initializing");
   }
 
   // Apply transform to convert canvas coordinates
-  function applyCanvasTransform(x, y, transform) {
+  function applyContextTransform(x, y, transform) {
     const { a, b, c, d, e, f } = transform;
     return {
       x: a * x + c * y + e,
@@ -651,6 +762,7 @@ console.log("wokemaps: extension initializing");
     }
 
     if (shouldUpdateCanvasTransform) {
+      console.log("updating transform after mutation");
       updateCanvasTransform();
     }
 
@@ -673,9 +785,16 @@ console.log("wokemaps: extension initializing");
 
     if (canvasTransformStr && canvasTransformStr !== 'none') {
       const transformValues = parseTransform(canvasTransformStr);
-      if (transformValues) {
-        canvasTransform = transformValues;
-      }
+      logTransformIfDifferent("canvas", transformValues, canvasTransform);
+      canvasTransform = transformValues;
+    }
+  }
+
+  function logTransformIfDifferent(name, newTransform, oldTransform) {
+    if (newTransform.translateX !== oldTransform.translateX ||
+        newTransform.translateY !== oldTransform.translateY ||
+        newTransform.scale !== oldTransform.scale) {
+      console.log(`${name} transform changes`, newTransform);
     }
   }
 
@@ -689,10 +808,13 @@ console.log("wokemaps: extension initializing");
     if (parentTransformStr && parentTransformStr !== 'none') {
       const transformValues = parseTransform(parentTransformStr);
       if (transformValues) {
+        //logTransformIfDifferent("parent", transformValues, parentTransform);
         parentTransform = transformValues;
       }
     } else {
-      parentTransform = { translateX: 0, translateY: 0, scale: 1 };
+      const transformValues = { translateX: 0, translateY: 0, scale: 1 };
+      //logTransformIfDifferent("parent", transformValues, parentTransform);
+      parentTransform = transformValues;
     }
 
     // Check if parent transform is zero
@@ -765,9 +887,10 @@ console.log("wokemaps: extension initializing");
   function handleMapInteraction() {
     // Update transforms
     setTimeout(() => {
+      console.log("running timeout after map interaction");
       updateCanvasTransform();
       updateParentTransform();
-    }, 50);
+    }, 1);
   }
 
   // Set up URL change detection (but only update center when parent is zero)
@@ -869,7 +992,7 @@ console.log("wokemaps: extension initializing");
     const y = canvasCenterY + worldOffsetY - (canvasTransform.translateY * transformMultiplier) + tileAlignmentY;
 
     // Check if on screen (with margin)
-    //xcxc this necessary?
+    //TODO: this necessary?
     if (x < -100 || x > mapCanvas.width + 100 || y < -100 || y > mapCanvas.height + 100) {
       return;
     }
