@@ -29,7 +29,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["labels.json"],
+      "resources": ["labels-v1.json"],
       "matches": ["*://*.google.com/*"]
     }
   ],

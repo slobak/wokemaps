@@ -8,8 +8,8 @@ console.log("wokemaps: extension initializing");
   const HIGHLIGHT_GRID = false;
   const DEBUG_ONE_LABEL = false;
   const LABEL_VERSION = 1;
-  const USE_LABEL_REMOTE = false;
-  const USE_LABEL_CACHE = false;
+  const USE_LABEL_REMOTE = true;
+  const USE_LABEL_CACHE = true;
 
   // Track state
   let mapCanvas = null;
@@ -34,44 +34,35 @@ console.log("wokemaps: extension initializing");
   let preRenderedLabels = [];
   let fontLoaded = false;
 
-  function loadCachedLabels() {
+  const LABEL_CACHE_KEY = 'wokemaps_labels_cache';
+  const LABEL_CACHE_EXPIRY_KEY = 'wokemaps_labels_expiry';
+  const LABEL_CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
 
+  function validateLabels(data) {
+    if (!(data instanceof Object)) {
+      throw new Error("Label data is not a dictionary");
+    }
+    if (!data.labels || !(data.labels instanceof Array)) {
+      throw new Error("No array `labels` found in label data");
+    }
   }
 
-  function loadBuiltinLabels() {
+  function loadCachedLabels() {
+    const cachedLabels = localStorage.getItem(LABEL_CACHE_KEY);
+    const cacheExpiry = localStorage.getItem(LABEL_CACHE_EXPIRY_KEY);
 
+    const now = Date.now();
+
+    if (cachedLabels && cacheExpiry && now < parseInt(cacheExpiry)) {
+      console.log("wokemaps: Using cached labels");
+      return JSON.parse(cachedLabels);
+    }
   }
 
   async function loadRemoteLabels() {
-
-  }
-
-  async function loadLabels() {
-    console.log("wokemaps: Loading labels...");
-
-    const CACHE_KEY = 'wokemaps_labels_cache';
-    const CACHE_EXPIRY_KEY = 'wokemaps_labels_expiry';
-    const CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
-
     try {
-      // Check if we have cached labels that haven't expired
-      const cachedLabels = localStorage.getItem(CACHE_KEY);
-      const cacheExpiry = localStorage.getItem(CACHE_EXPIRY_KEY);
-
-      const now = Date.now();
-
-      if (USE_LABEL_CACHE && cachedLabels && cacheExpiry && now < parseInt(cacheExpiry)) {
-        console.log("wokemaps: Using cached labels");
-        return JSON.parse(cachedLabels);
-      }
-
-      if (!USE_LABEL_REMOTE) {
-        throw new Error('USE_LABEL_REMOTE is off, not fetching');
-      }
-
-      // Cache expired or doesn't exist, fetch from remote
       console.log("wokemaps: Fetching fresh labels from remote source...");
-      const response = await fetch(`https://wokemaps.org/s/labels-v${LABEL_VERSION}.json`, {
+      const response = await fetch(`https://wokemaps-public.s3.us-east-2.amazonaws.com/labels-v${LABEL_VERSION}.json`, {
         method: 'GET',
         cache: 'no-cache',
         headers: {
@@ -85,49 +76,60 @@ console.log("wokemaps: extension initializing");
       }
 
       const remoteLabels = await response.json();
+      validateLabels(remoteLabels);
 
       // Cache the successful response
-      localStorage.setItem(CACHE_KEY, JSON.stringify(remoteLabels));
-      localStorage.setItem(CACHE_EXPIRY_KEY, (now + CACHE_DURATION).toString());
+      localStorage.setItem(LABEL_CACHE_KEY, JSON.stringify(remoteLabels));
+      localStorage.setItem(LABEL_CACHE_EXPIRY_KEY, (Date.now() + LABEL_CACHE_DURATION).toString());
 
-      console.log(`wokemaps: Successfully loaded and cached ${remoteLabels.length} labels from remote source`);
+      console.log(`wokemaps: Successfully loaded and cached ${remoteLabels.labels.length} labels from remote source`);
       return remoteLabels;
     } catch (error) {
       console.warn(`wokemaps: Failed to load remote labels: ${error.message}`);
+      return null;
+    }
+  }
 
-      // Check if we have any cached labels (even if expired) as fallback
-      const cachedLabels = localStorage.getItem(CACHE_KEY);
-      if (cachedLabels) {
-        console.log("wokemaps: Using expired cached labels as fallback");
-        return JSON.parse(cachedLabels);
+  async function loadBuiltinLabels() {
+    try {
+      // Fallback to local file
+      const localUrl = chrome.runtime.getURL(`labels-v${LABEL_VERSION}.json`);
+      const localResponse = await fetch(localUrl);
+
+      if (!localResponse.ok) {
+        throw new Error(`Local resource fetch failed with status: ${localResponse.status}`);
       }
 
-      console.log("wokemaps: Falling back to local labels...");
+      const localLabels = await localResponse.json();
+      validateLabels(localLabels);
 
-      try {
-        // Fallback to local file
-        const localUrl = chrome.runtime.getURL(`labels.json`);
-        const localResponse = await fetch(localUrl);
+      console.log(`wokemaps: Successfully loaded ${localLabels.labels.length} labels from local fallback`);
+      return localLabels;
+    } catch (localError) {
+      console.error(`wokemaps: Failed to load local labels: ${localError.message}`);
+      console.error("wokemaps: No labels available, extension may not work properly");
+      return []; // Return empty array if everything fails
+    }
+  }
 
-        if (!localResponse.ok) {
-          throw new Error(`Local fetch failed with status: ${localResponse.status}`);
-        }
+  async function loadLabels() {
+    console.log("wokemaps: Loading labels...");
 
-        const localLabels = await localResponse.json();
-
-        // Cache the local labels too (in case remote stays down)
-        localStorage.setItem(CACHE_KEY, JSON.stringify(localLabels));
-        localStorage.setItem(CACHE_EXPIRY_KEY, (Date.now() + CACHE_DURATION).toString());
-
-        console.log(`wokemaps: Successfully loaded ${localLabels.length} labels from local fallback`);
-        return localLabels;
-
-      } catch (localError) {
-        console.error(`wokemaps: Failed to load local labels: ${localError.message}`);
-        console.error("wokemaps: No labels available, extension may not work properly");
-        return []; // Return empty array if everything fails
+    if (USE_LABEL_CACHE) {
+      const cachedLabels = loadCachedLabels();
+      if (cachedLabels) {
+        return cachedLabels;
       }
     }
+
+    if (USE_LABEL_REMOTE) {
+      const remoteLabels = await loadRemoteLabels();
+      if (remoteLabels) {
+        return remoteLabels;
+      }
+    }
+
+    return await loadBuiltinLabels();
   }
 
   // Load custom handwritten font
@@ -347,7 +349,7 @@ console.log("wokemaps: extension initializing");
     }
 
     mapCanvas = mapRenderingCanvas;
-    mapContext = mapCanvas.getContext('2d');
+    mapContext = mapCanvas.getContext('2d', { willReadFrequently: true });
     canvasParent = mapCanvas.parentElement;
 
     console.log(`Using canvas: ${mapCanvas.width}x${mapCanvas.height}`);
