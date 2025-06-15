@@ -18,6 +18,8 @@ console.log("wokemaps: extension initializing");
   let lastCenter = null;
   let lastZoom = 0;
   let observer = null;
+  let zoomInteractionTimeout = null;
+  let isPotentiallyZooming = false;
 
   // Transform tracking
   let canvasTransform = { translateX: 0, translateY: 0, scale: 1 };
@@ -487,6 +489,7 @@ console.log("wokemaps: extension initializing");
       const {dx, dy, dw, dh} = extent;
       const hash = getTileContentHash(mapContext, transform, dx, dy, dw, dh);
       firstTileInSequence = hash >>> 0;
+      console.log(`Maps is rendering tiles, first is ${firstTileInSequence.toString(16)}`);
       sequenceMayHaveNewTransform = firstTileInSequence !== previousFirstTileInSequence;
     }
   }
@@ -526,7 +529,17 @@ console.log("wokemaps: extension initializing");
 
     // Check if we should start a new sequence
     if (isTile && !sequenceInProgress) {
+      // Make sure our transform info is up to date.
+      updateCanvasTransform();
+      updateParentTransform();
       recordTileInSequence(extent, transform);
+    }
+
+    if (isPotentiallyZooming) {
+      // We have recently processed an interaction that could potentially zoom the view and our state will be
+      // out of sync, causing us to render in the wrong place, leaving a visual artifact without recourse.
+      // Instead of rendering, wait until zoom settles.
+      return;
     }
 
     if (sequenceMayHaveNewTransform) {
@@ -593,7 +606,7 @@ console.log("wokemaps: extension initializing");
       );
 
       if (overlap) {
-        console.log("Drawing label overlap", imageCanvasBounds, labelCanvasBounds, overlap);
+        // console.log("Drawing label overlap", imageCanvasBounds, labelCanvasBounds, overlap);
         drawLabelOverlap(label, overlap, transform);
       }
     });
@@ -676,8 +689,7 @@ console.log("wokemaps: extension initializing");
     // Draw the label portion
     try {
       mapContext.save();
-      // TODO: this may be unnecessary if we are NOT drawing "immediately" in response to Maps redraw.
-      // But it is important we draw with no transform because the parameters we are passing are
+      // It is important we draw with no transform because the parameters we are passing are
       // relative to the origin of the canvas.
       mapContext.resetTransform();
       mapContext.drawImage(
@@ -700,9 +712,27 @@ console.log("wokemaps: extension initializing");
     };
   }
 
-  function setupMapRedrawListener() {
+  function setupMapsHooks() {
     window.addEventListener('wokemaps_canvasDrawImageCalled', onCanvasImageDrawn);
-    console.log('wokemaps: Canvas drawImage listener initialized');
+    window.addEventListener('wokemaps_urlChanged', onMapsUrlChanged);
+    window.addEventListener('wokemaps_potentialZoomInteraction', handlePotentialZoomInteraction);
+    console.log('wokemaps: hook listeners initialized');
+  }
+
+  function onMapsUrlChanged(e) {
+    if (parentIsZero) {
+      console.log("onMapsUrlChanged: Parent transform is zero - updating center from URL");
+      updatePositionFromUrl();
+      if (zoomInteractionTimeout !== null) {
+        console.log("zoom resolved, redrawing")
+        clearTimeout(zoomInteractionTimeout);
+        zoomInteractionTimeout = null;
+        isPotentiallyZooming = false;
+        updateCanvasTransform();
+        updateParentTransform();
+        drawAllLabels();
+      }
+    }
   }
 
   // Set up MutationObserver to watch for map changes
@@ -724,57 +754,35 @@ console.log("wokemaps: extension initializing");
       });
     }
 
-    // Listen for user interactions that likely change the map
-    document.addEventListener('mouseup', handleMapInteraction);
-    document.addEventListener('wheel', handleMapInteraction);
-    window.addEventListener('resize', handleMapInteraction);
-
-    // Watch for URL changes (only update center when parent transform is zero)
-    setupUrlChangeDetection();
-
     // Watch for when map tiles are redrawn
-    setupMapRedrawListener();
-
-    // Draw initial labels
-    setTimeout(() => {
-      updateCanvasTransform();
-      updateParentTransform();
-    }, 500);
+    setupMapsHooks();
 
     console.log("MutationObserver and event listeners set up");
   }
+
 
   // Handle DOM mutations
   function handleMutations(mutations) {
     let shouldUpdateCanvasTransform = false;
     let shouldUpdateParentTransform = false;
-    let shouldRedraw = false;
 
     for (const mutation of mutations) {
       // If the mutation involves style changes on canvas or parent
       if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
         if (mutation.target === mapCanvas) {
           shouldUpdateCanvasTransform = true;
-          shouldRedraw = true;
         } else if (mutation.target === canvasParent) {
           shouldUpdateParentTransform = true;
-          shouldRedraw = true;
         }
       }
     }
 
     if (shouldUpdateCanvasTransform) {
-      console.log("updating transform after mutation");
       updateCanvasTransform();
     }
 
     if (shouldUpdateParentTransform) {
       updateParentTransform();
-    }
-
-    if (shouldRedraw) {
-      // We don't draw in response to anything other than tile redraws now.
-      //drawAllLabels();
     }
   }
 
@@ -789,14 +797,6 @@ console.log("wokemaps: extension initializing");
       const transformValues = parseTransform(canvasTransformStr);
       logTransformIfDifferent("canvas", transformValues, canvasTransform);
       canvasTransform = transformValues;
-    }
-  }
-
-  function logTransformIfDifferent(name, newTransform, oldTransform) {
-    if (newTransform.translateX !== oldTransform.translateX ||
-        newTransform.translateY !== oldTransform.translateY ||
-        newTransform.scale !== oldTransform.scale) {
-      console.log(`${name} transform changes`, newTransform);
     }
   }
 
@@ -827,6 +827,14 @@ console.log("wokemaps: extension initializing");
     if (!wasZero && parentIsZero) {
       console.log("Parent transform went to zero - updating center from URL");
       updatePositionFromUrl();
+    }
+  }
+
+  function logTransformIfDifferent(name, newTransform, oldTransform) {
+    if (newTransform.translateX !== oldTransform.translateX ||
+        newTransform.translateY !== oldTransform.translateY ||
+        newTransform.scale !== oldTransform.scale) {
+      console.log(`${name} transform changes`, newTransform);
     }
   }
 
@@ -885,33 +893,26 @@ console.log("wokemaps: extension initializing");
     }
   }
 
-  // Handle map interactions (mouse, wheel, etc.)
-  function handleMapInteraction() {
+  // Handle map interactions that might result in a zoom (button click, wheel, etc.)
+  function handlePotentialZoomInteraction() {
+    // Suspend redrawing - zoom may be changing and we could draw in the wrong place.
+    // Better to disappear/flicker for a bit.
+    isPotentiallyZooming = true;
+    console.log("potential zoom interaction, suspending redraw");
+
     // Update transforms
-    setTimeout(() => {
-      console.log("running timeout after map interaction");
+    if (zoomInteractionTimeout) {
+      clearTimeout(zoomInteractionTimeout);
+    }
+    zoomInteractionTimeout = setTimeout(() => {
+      console.log("zoom interaction timeout, redrawing");
+      zoomInteractionTimeout = null;
+      isPotentiallyZooming = false;
+      updatePositionFromUrl();
       updateCanvasTransform();
       updateParentTransform();
-    }, 1);
-  }
-
-  // Set up URL change detection (but only update center when parent is zero)
-  function setupUrlChangeDetection() {
-    let lastUrl = window.location.href;
-
-    // Check periodically for URL changes
-    const checkUrlInterval = setInterval(() => {
-      const currentUrl = window.location.href;
-      if (currentUrl !== lastUrl) {
-        lastUrl = currentUrl;
-
-        // Only update center from URL if parent transform is near zero
-        if (parentIsZero) {
-          console.log("Parent transform is zero - updating center from URL");
-          updatePositionFromUrl();
-        }
-      }
-    }, 500);
+      drawAllLabels();
+    }, 1000);
   }
 
   // Update position information from URL
@@ -957,7 +958,7 @@ console.log("wokemaps: extension initializing");
     LABELS.forEach(label => {
       // Check if within this label's zoom range
       if (zoom >= label.minZoom && zoom <= label.maxZoom) {
-        drawLabel(label.lat, label.lng, label.text, label.color, label.scale);
+        drawLabel(label.lat, label.lng, label.text, label.color || '#000066', label.scale || 1);
       }
     });
   }

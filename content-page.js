@@ -50,5 +50,54 @@
         }));
     };
 
-    console.log('wokemaps: Canvas drawImage override initialized');
+    const originalPushState = history.pushState;
+    history.pushState = function(...args) {
+        originalPushState.apply(history, args);
+        window.dispatchEvent(new CustomEvent('wokemaps_urlChanged', {
+            detail: {
+                url: window.location.href
+            }
+        }));
+    };
+
+    const originalReplaceState = history.replaceState;
+    history.replaceState = function(...args) {
+        originalReplaceState.apply(history, args);
+        window.dispatchEvent(new CustomEvent('wokemaps_urlChanged', {
+            detail: {
+                url: window.location.href
+            }
+        }));
+    };
+
+
+    function handleMouseUp(e) {
+        const target = e.target;
+        console.log("mouseUp", target);
+        const zoomInButton = document.getElementById('widget-zoom-in');
+        const zoomOutButton = document.getElementById('widget-zoom-out');
+        if (target === zoomInButton || zoomInButton.contains(target)  ||
+            target === zoomOutButton || zoomOutButton.contains(target)) {
+            handlePotentialZoomInteraction(e);
+        }
+    }
+
+    function handleKeyDown(e) {
+        const key = e.key; // Get the name of the pressed key
+        if (key === '-' || key === '+' || key === '=') {
+            handlePotentialZoomInteraction(e);
+        }
+    }
+
+    function handlePotentialZoomInteraction() {
+        console.log("x3");
+        window.dispatchEvent(new CustomEvent('wokemaps_potentialZoomInteraction', {}));
+    }
+
+    window.addEventListener('mouseup', handleMouseUp, { capture: true, passive: true });
+    window.addEventListener('wheel', handlePotentialZoomInteraction, { capture: true, passive: true });
+    window.addEventListener('keydown', handleKeyDown, { capture: true, passive: true });
+
+
+    console.log('wokemaps: page hooks initialized');
 })();
