@@ -1,35 +1,86 @@
-/* Import the Permanent Marker font for handwritten style */
-@import url('https://fonts.googleapis.com/css2?family=Permanent+Marker&display=swap');
-
-/* Style for our replacement "Gulf of Mexico" text */
-.gulf-sharpie-text {
-  font-family: 'Permanent Marker', cursive !important;
-  font-size: 1.35em !important;
-  font-weight: normal !important;
-  color: #000066 !important; /* Dark blue like Sharpie ink */
-  text-shadow: 0px 0px 1px rgba(0, 0, 0, 0.7) !important;
-  letter-spacing: 0.5px !important;
-  transform: rotate(-1.5deg) !important;
-  display: inline-block !important;
-  position: relative !important;
-  z-index: 1000 !important; /* Ensure our text is on top */
-  padding: 0 3px !important;
-  margin: -2px 0 !important;
-  background: rgba(255, 255, 255, 0.7) !important; /* Slight background to make text more visible */
-  border-radius: 3px !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
-  pointer-events: none !important; /* Don't interfere with map interactions */
-  /* Ensure we override Google's text styles */
-  line-height: 1.2 !important;
-  white-space: nowrap !important;
+.wokemaps-announcement-close:hover {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: #333;
 }
 
-/* Special override for dark mode */
-@media (prefers-color-scheme: dark) {
-  .gulf-sharpie-text {
-    color: #6699ff !important; /* Lighter blue for dark mode */
-    background: rgba(0, 0, 0, 0.6) !important;
-    text-shadow: 0px 0px 2px rgba(255, 255, 255, 0.5) !important;
-  }
+.wokemaps-announcement-text a {
+  color: #1a73e8;
+  text-decoration: none;
 }
 
+.wokemaps-announcement-text a:hover {
+  text-decoration: underline;
+}
+#wokemaps-announcement-bar {
+   position: fixed;
+   top: 0;
+   left: 0;
+   right: 0;
+   z-index: 10000;
+   background-color: rgba(255, 255, 255, 0.7);
+   backdrop-filter: blur(8px);
+   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+   font-family: 'Roboto', Arial, sans-serif;
+   font-size: 14px;
+   line-height: 1.4;
+   transform: translateY(-100%);
+   transition: transform 0.3s ease-out;
+ }
+
+#wokemaps-announcement-bar.show {
+  transform: translateY(0);
+}
+
+.wokemaps-announcement-content {
+  display: flex;
+  align-items: center;
+  margin: 0 auto;
+  padding: 12px 16px;
+  gap: 12px;
+}
+
+.wokemaps-announcement-icon {
+  flex-shrink: 0;
+  opacity: 0.7;
+  order: 1;
+}
+
+.wokemaps-announcement-icon img {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.wokemaps-announcement-text {
+  flex: 1;
+  color: #333;
+  text-align: left;
+  padding-left: 8px;
+  order: 2;
+}
+
+.wokemaps-announcement-close {
+  background: none;
+  border: none;
+  font-size: 20px;
+  font-weight: bold;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  order: 3;
+  margin-left: auto;
+}
+
+/* Adjust Google Maps content to account for announcement bar */
+body:has(#wokemaps-announcement-bar.show) #omnibox-container {
+  margin-top: 48px;
+}

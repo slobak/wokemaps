@@ -150,7 +150,13 @@ console.log("wokemaps: extension initializing");
     });
   }
 
-  const LABELS = (await loadLabels()).labels;
+  const loadedData = await loadLabels();
+  const LABELS = loadedData.labels;
+
+  window.wokemapsAnnouncements.initialize(loadedData.announcements || []);
+
+  loadCustomFont();
+
   loadCustomFont();
 
   // Draw a label at the specified position and return its dimensions
