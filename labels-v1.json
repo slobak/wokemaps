@@ -6,36 +6,72 @@
             "text": "Gulf of Mexico",
             "minZoom": 4,
             "maxZoom": 16,
-            "scale": 1.2
+            "scale": 1.4
         },
         {
             "lat": 57.7763711,
             "lng": -101.6777294,
-            "text": "Sovereign\nCountry of Canada",
+            "text": "Sovereign Country of",
             "minZoom": 4,
             "maxZoom": 21,
-            "scale": 1.2
+            "scale": 1.4,
+            "yOffset": -45
         },
         {
             "lat": 60.000000,
             "lng": -112.488277,
-            "text": "Sovereign\nCountry of Canada",
+            "text": "Sovereign Country of",
             "minZoom": 3,
-            "maxZoom": 3
+            "maxZoom": 3,
+            "scale": 0.9,
+            "yOffset": -30
         },
         {
             "lat": 65.878131,
             "lng": -46.168587,
-            "text": "Greenland\n(Not For Sale)",
+            "text": "(Not For Sale)",
             "minZoom": 3,
-            "maxZoom": 7
+            "maxZoom": 3,
+            "yOffset": 30,
+            "scale": 1
+        },
+        {
+            "lat": 65.878131,
+            "lng": -46.168587,
+            "text": "(Not For Sale)",
+            "minZoom": 4,
+            "maxZoom": 7,
+            "yOffset": 40,
+            "scale": 1.2
         },
         {
             "lat": 26.6770731,
-            "lng": -80.0370338,
-            "text": "Mar-a-Lago\n(classified doc showroom)",
+            "lng": -80.0370038,
+            "text": "(classified doc showroom)",
             "minZoom": 13,
-            "maxZoom": 21
+            "maxZoom": 21,
+            "xOffset": -120,
+            "yOffset": 10
+        },
+        {
+            "lat": 63.06920,
+            "lng": -151.0070,
+            "text": "Denali",
+            "minZoom": 9,
+            "maxZoom": 17,
+            "xOffset": -100,
+            "yOffset": -30,
+            "scale": 1.5
+        },
+        {
+            "lat": 63.069176,
+            "lng": -151.00699,
+            "text": "Denali",
+            "minZoom": 18,
+            "maxZoom": 21,
+            "xOffset": -100,
+            "yOffset": 0,
+            "scale": 2
         },
         {
             "lat": 27.3423073,
