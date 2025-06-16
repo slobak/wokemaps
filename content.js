@@ -5,11 +5,53 @@
 console.log("wokemaps: extension initializing");
 
 (async function() {
-  const HIGHLIGHT_GRID = false;
-  const DEBUG_ONE_LABEL = false;
-  const LABEL_VERSION = 1;
-  const USE_LABEL_REMOTE = true;
-  const USE_LABEL_CACHE = true;
+
+  // Load options system first
+  const OPTIONS_STORAGE_KEY = 'wokemaps_options';
+  let options = {};
+
+  async function loadOptions() {
+    try {
+      // Try to load from storage first
+      const storedOptions = (await chrome.storage.sync.get([OPTIONS_STORAGE_KEY]))[OPTIONS_STORAGE_KEY];
+      if (storedOptions) {
+        console.log("wokemaps: Loaded options from storage", storedOptions);
+        return storedOptions;
+      }
+    } catch (e) {
+      console.warn("wokemaps: Failed to load options from storage:", e);
+    }
+
+    // Fall back to default options
+    const defaultOptionsUrl = chrome.runtime.getURL('default-options.json');
+    const response = await fetch(defaultOptionsUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to load default options: ${response.status}`);
+    }
+    const defaultOptions = await response.json();
+    console.log("wokemaps: Loaded default options", defaultOptions);
+
+    return defaultOptions;
+  }
+
+  // Load options at startup
+  options = await loadOptions();
+  const debugOptions = options.debug || {};
+
+  // Use options instead of constants
+  const LABEL_VERSION = 1;  // TODO: switch to "config version"
+  const HIGHLIGHT_GRID = debugOptions.highlightGrid || false;
+  const DEBUG_ONE_LABEL = debugOptions.debugOneLabel || false;
+  const USE_LABEL_REMOTE = debugOptions.enableRemoteConfig !== false; // Default to true
+  const USE_LABEL_CACHE = debugOptions.enableRemoteConfigCache !== false;
+  const LOG_LEVEL = debugOptions.logLevel || 0;
+
+  // Enhanced logging function
+  function log(level, ...args) {
+    if (level <= LOG_LEVEL) {
+      console.log("wokemaps:", ...args);
+    }
+  }
 
   // Track state
   let mapCanvas = null;
@@ -49,9 +91,10 @@ console.log("wokemaps: extension initializing");
     }
   }
 
-  function loadCachedLabels() {
-    const cachedLabels = localStorage.getItem(LABEL_CACHE_KEY);
-    const cacheExpiry = localStorage.getItem(LABEL_CACHE_EXPIRY_KEY);
+  async function loadCachedLabels() {
+    const cacheSettings = await chrome.storage.local.get([LABEL_CACHE_KEY, LABEL_CACHE_EXPIRY_KEY]);
+    const cachedLabels = cacheSettings[LABEL_CACHE_KEY];
+    const cacheExpiry = cacheSettings[LABEL_CACHE_EXPIRY_KEY];
 
     const now = Date.now();
 
@@ -81,8 +124,10 @@ console.log("wokemaps: extension initializing");
       validateLabels(remoteLabels);
 
       // Cache the successful response
-      localStorage.setItem(LABEL_CACHE_KEY, JSON.stringify(remoteLabels));
-      localStorage.setItem(LABEL_CACHE_EXPIRY_KEY, (Date.now() + LABEL_CACHE_DURATION).toString());
+      chrome.storage.local.set({
+        [LABEL_CACHE_KEY]: JSON.stringify(remoteLabels),
+        [LABEL_CACHE_EXPIRY_KEY]: (Date.now() + LABEL_CACHE_DURATION).toString()
+      });
 
       console.log(`wokemaps: Successfully loaded and cached ${remoteLabels.labels.length} labels from remote source`);
       return remoteLabels;
@@ -117,14 +162,14 @@ console.log("wokemaps: extension initializing");
   async function loadLabels() {
     console.log("wokemaps: Loading labels...");
 
-    if (USE_LABEL_CACHE) {
-      const cachedLabels = loadCachedLabels();
-      if (cachedLabels) {
-        return cachedLabels;
-      }
-    }
-
     if (USE_LABEL_REMOTE) {
+      if (USE_LABEL_CACHE) {
+        const cachedLabels = await loadCachedLabels();
+        if (cachedLabels) {
+          return cachedLabels;
+        }
+      }
+
       const remoteLabels = await loadRemoteLabels();
       if (remoteLabels) {
         return remoteLabels;
@@ -153,7 +198,9 @@ console.log("wokemaps: extension initializing");
   const loadedData = await loadLabels();
   const LABELS = loadedData.labels;
 
-  window.wokemapsAnnouncements.initialize(loadedData.announcements || []);
+  if (options.enableAnnouncements !== false) {
+    window.wokemapsAnnouncements.initialize(loadedData.announcements || []);
+  }
 
   loadCustomFont();
 

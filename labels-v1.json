@@ -1,5 +1,7 @@
 {
-    "announcements": [],
+    "announcements": [{
+        "contents": "Thank you for installing! 🙏", "show-after": "2025-06-09T00:00:00Z"
+    }],
     "labels": [
         {
             "lat": 25.334537,

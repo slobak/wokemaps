@@ -1,0 +1,10 @@
+{
+  "enableAnnouncements": true,
+  "debug": {
+    "enableRemoteConfig": true,
+    "enableRemoteConfigCache": true,
+    "highlightGrid": false,
+    "logLevel": 0,
+    "showDebugUi": true
+  }
+}

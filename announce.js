@@ -10,13 +10,13 @@
 
     const DISMISSAL_STORAGE_KEY = 'wokemaps_announcement_dismissals';
 
-    // Load dismissal state from localStorage
-    function loadDismissalState() {
+
+    // Load dismissal state from Chrome storage
+    async function loadDismissalState() {
         try {
-            const stored = localStorage.getItem(DISMISSAL_STORAGE_KEY);
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                return parsed.latestDismissal || null;
+            const result = await chrome.storage.sync.get([DISMISSAL_STORAGE_KEY]);
+            if (result[DISMISSAL_STORAGE_KEY]) {
+                return result[DISMISSAL_STORAGE_KEY].latestDismissal || null;
             }
         } catch (e) {
             console.warn("wokemaps: Failed to load dismissal state:", e);
@@ -24,13 +24,13 @@
         return null;
     }
 
-    // Save dismissal state to localStorage
-    function saveDismissalState(timestamp) {
+    // Save dismissal state to Chrome storage
+    async function saveDismissalState(timestamp) {
         try {
             const state = {
                 latestDismissal: timestamp
             };
-            localStorage.setItem(DISMISSAL_STORAGE_KEY, JSON.stringify(state));
+            await chrome.storage.sync.set({ [DISMISSAL_STORAGE_KEY]: state });
         } catch (e) {
             console.warn("wokemaps: Failed to save dismissal state:", e);
         }

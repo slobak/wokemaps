@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
   "name": "#wokemaps",
-  "version": "0.9.1",
+  "version": "0.9.2",
   "description": "Modifies Google Maps to restore progressive labels as overlays on some locations, for your relief and enjoyment.",
-  "permissions": [],
+  "permissions": ["storage"],
   "host_permissions": [
     "*://*.google.com/maps/*"
   ],
@@ -13,7 +13,8 @@
       "48": "images/icon48.png",
       "128": "images/icon128.png"
     },
-    "default_title": "#wokemaps"
+    "default_title": "#wokemaps",
+    "default_popup": "popup.html"
   },
   "content_scripts": [
     {
@@ -30,7 +31,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["labels-v1.json", "images/icon16.png"],
+      "resources": ["default-options.json", "labels-v1.json", "images/icon16.png"],
       "matches": ["*://*.google.com/*"]
     }
   ],
