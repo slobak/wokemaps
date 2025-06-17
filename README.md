@@ -23,7 +23,7 @@ The detection is not easy, and the extension tries a few different methods, stil
 ```
 woke-map/
 ├── manifest.json     # Extension configuration
-├── content.js        # Script that creates the custom overlay
+├── content-main.js        # Script that creates the custom overlay
 ├── labels.json         # Contains just the data for labels to overlay
 ├── README.md         # This documentation file
 └── images/           # Extension icons
