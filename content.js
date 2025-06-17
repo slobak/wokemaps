@@ -51,107 +51,6 @@ console.log("wokemaps: extension initializing");
   let preRenderedLabels = [];
   let fontLoaded = false;
 
-  const LABEL_CACHE_KEY = 'wokemaps_labels_cache';
-  const LABEL_CACHE_EXPIRY_KEY = 'wokemaps_labels_expiry';
-  const LABEL_CACHE_DURATION = 3 * 60 * 60 * 1000; // 3 hours in milliseconds
-
-  function validateLabels(data) {
-    if (!(data instanceof Object)) {
-      throw new Error("Label data is not a dictionary");
-    }
-    if (!data.labels || !(data.labels instanceof Array)) {
-      throw new Error("No array `labels` found in label data");
-    }
-  }
-
-  async function loadCachedLabels() {
-    const cacheSettings = await chrome.storage.local.get([LABEL_CACHE_KEY, LABEL_CACHE_EXPIRY_KEY]);
-    const cachedLabels = cacheSettings[LABEL_CACHE_KEY];
-    const cacheExpiry = cacheSettings[LABEL_CACHE_EXPIRY_KEY];
-
-    const now = Date.now();
-
-    if (cachedLabels && cacheExpiry && now < parseInt(cacheExpiry)) {
-      console.log("wokemaps: Using cached labels");
-      return JSON.parse(cachedLabels);
-    }
-  }
-
-  async function loadRemoteLabels() {
-    try {
-      console.log("wokemaps: Fetching fresh labels from remote source...");
-      const response = await fetch(`https://wokemaps-public.s3.us-east-2.amazonaws.com/labels-v${LABEL_VERSION}.json`, {
-        method: 'GET',
-        cache: 'no-cache',
-        headers: {
-          'Accept': 'application/json',
-        },
-        signal: AbortSignal.timeout(5000) // 5 second timeout
-      });
-
-      if (!response.ok) {
-        throw new Error(`Remote fetch failed with status: ${response.status}`);
-      }
-
-      const remoteLabels = await response.json();
-      validateLabels(remoteLabels);
-
-      // Cache the successful response
-      chrome.storage.local.set({
-        [LABEL_CACHE_KEY]: JSON.stringify(remoteLabels),
-        [LABEL_CACHE_EXPIRY_KEY]: (Date.now() + LABEL_CACHE_DURATION).toString()
-      });
-
-      console.log(`wokemaps: Successfully loaded and cached ${remoteLabels.labels.length} labels from remote source`);
-      return remoteLabels;
-    } catch (error) {
-      console.warn(`wokemaps: Failed to load remote labels: ${error.message}`);
-      return null;
-    }
-  }
-
-  async function loadBuiltinLabels() {
-    try {
-      // Fallback to local file
-      const localUrl = chrome.runtime.getURL(`labels-v${LABEL_VERSION}.json`);
-      const localResponse = await fetch(localUrl);
-
-      if (!localResponse.ok) {
-        throw new Error(`Local resource fetch failed with status: ${localResponse.status}`);
-      }
-
-      const localLabels = await localResponse.json();
-      validateLabels(localLabels);
-
-      console.log(`wokemaps: Successfully loaded ${localLabels.labels.length} labels from local fallback`);
-      return localLabels;
-    } catch (localError) {
-      console.error(`wokemaps: Failed to load local labels: ${localError.message}`);
-      console.error("wokemaps: No labels available, extension may not work properly");
-      return []; // Return empty array if everything fails
-    }
-  }
-
-  async function loadLabels() {
-    console.log("wokemaps: Loading labels...");
-
-    if (USE_LABEL_REMOTE) {
-      if (USE_LABEL_CACHE) {
-        const cachedLabels = await loadCachedLabels();
-        if (cachedLabels) {
-          return cachedLabels;
-        }
-      }
-
-      const remoteLabels = await loadRemoteLabels();
-      if (remoteLabels) {
-        return remoteLabels;
-      }
-    }
-
-    return await loadBuiltinLabels();
-  }
-
   // Load custom handwritten font
   function loadCustomFont() {
     const fontFace = new FontFace('Permanent Marker', 'url(https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQMWimMp004La2Cf5b6jlg.woff2)');
@@ -168,11 +67,14 @@ console.log("wokemaps: extension initializing");
     });
   }
 
-  const loadedData = await loadLabels();
-  const LABELS = loadedData.labels;
 
-  if (options.enableAnnouncements !== false) {
-    window.wokemapsAnnouncements.initialize(loadedData.announcements || []);
+  // Load app data
+  const appDataManager = new AppDataManager(optionsManager);
+  const LABELS = await appDataManager.getLabels();
+
+  if (await optionsManager.getOption('enableAnnouncements', true)) {
+    const announcements = await appDataManager.getAnnouncements();
+    window.wokemapsAnnouncements.initialize(announcements);
   }
 
   loadCustomFont();

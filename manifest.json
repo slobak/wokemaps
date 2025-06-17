@@ -26,6 +26,7 @@
       "matches": ["*://*.google.com/maps/*"],
       "js": [
         "options-manager.js",
+        "app-data-manager.js",
         "announce.js",
         "content.js"
       ],
