@@ -74,7 +74,8 @@ console.log("wokemaps: extension initializing");
 
   if (await optionsManager.getOption('enableAnnouncements', true)) {
     const announcements = await appDataManager.getAnnouncements();
-    window.wokemapsAnnouncements.initialize(announcements);
+    window.announcementManager = new AnnouncementManager(announcements);
+    // Runs on its own.
   }
 
   loadCustomFont();

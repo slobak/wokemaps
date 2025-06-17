@@ -27,7 +27,7 @@
       "js": [
         "options-manager.js",
         "app-data-manager.js",
-        "announce.js",
+        "announcement-manager.js",
         "content.js"
       ],
       "css": ["styles.css"],

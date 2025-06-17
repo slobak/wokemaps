@@ -1,22 +1,25 @@
-// Woke Maps Announcement System
+// Announcement Manager
 // Handles displaying dismissible announcements at the top of Google Maps
 
-(function() {
-    console.log("wokemaps: announcement system initializing");
+class AnnouncementManager {
+    constructor(announcements = []) {
+        this.DISMISSAL_STORAGE_KEY = 'wokemaps_announcement_dismissals';
+        this.announcementBar = null;
+        this.announcements = announcements;
+        this.currentAnnouncement = null;
 
-    let announcementBar = null;
-    let announcements = [];
-    let currentAnnouncement = null;
+        console.log(`wokemaps: Loaded ${this.announcements.length} announcements`);
 
-    const DISMISSAL_STORAGE_KEY = 'wokemaps_announcement_dismissals';
-
+        // Start the announcement process
+        this.showActiveAnnouncement();
+    }
 
     // Load dismissal state from Chrome storage
-    async function loadDismissalState() {
+    async loadDismissalState() {
         try {
-            const result = await chrome.storage.sync.get([DISMISSAL_STORAGE_KEY]);
-            if (result[DISMISSAL_STORAGE_KEY]) {
-                return result[DISMISSAL_STORAGE_KEY].latestDismissal || null;
+            const result = await chrome.storage.sync.get([this.DISMISSAL_STORAGE_KEY]);
+            if (result[this.DISMISSAL_STORAGE_KEY]) {
+                return result[this.DISMISSAL_STORAGE_KEY].latestDismissal || null;
             }
         } catch (e) {
             console.warn("wokemaps: Failed to load dismissal state:", e);
@@ -25,25 +28,25 @@
     }
 
     // Save dismissal state to Chrome storage
-    async function saveDismissalState(timestamp) {
+    async saveDismissalState(timestamp) {
         try {
             const state = {
                 latestDismissal: timestamp
             };
-            await chrome.storage.sync.set({ [DISMISSAL_STORAGE_KEY]: state });
+            await chrome.storage.sync.set({ [this.DISMISSAL_STORAGE_KEY]: state });
         } catch (e) {
             console.warn("wokemaps: Failed to save dismissal state:", e);
         }
     }
 
     // Find the first non-dismissed announcement that should be shown
-    function findActiveAnnouncement(announcements) {
+    async findActiveAnnouncement(announcements) {
         if (!announcements || !Array.isArray(announcements) || announcements.length === 0) {
             return null;
         }
 
         const now = new Date();
-        const latestDismissal = loadDismissalState();
+        const latestDismissal = await this.loadDismissalState();
         const latestDismissalDate = latestDismissal ? new Date(latestDismissal) : null;
 
         for (const announcement of announcements) {
@@ -72,7 +75,7 @@
     }
 
     // Create the announcement bar HTML
-    function createAnnouncementBar(announcement) {
+    createAnnouncementBar(announcement) {
         const bar = document.createElement('div');
         bar.id = 'wokemaps-announcement-bar';
         bar.innerHTML = `
@@ -89,77 +92,72 @@
     }
 
     // Show the announcement bar with animation
-    function showAnnouncementBar(announcement) {
-        if (announcementBar) {
+    showAnnouncementBar(announcement) {
+        if (this.announcementBar) {
             return; // Already showing
         }
 
-        announcementBar = createAnnouncementBar(announcement);
-        currentAnnouncement = announcement;
+        this.announcementBar = this.createAnnouncementBar(announcement);
+        this.currentAnnouncement = announcement;
 
         // Add to DOM
-        document.body.appendChild(announcementBar);
+        document.body.appendChild(this.announcementBar);
 
         // Add event listener for close button
-        const closeButton = announcementBar.querySelector('.wokemaps-announcement-close');
-        closeButton.addEventListener('click', dismissAnnouncement);
+        const closeButton = this.announcementBar.querySelector('.wokemaps-announcement-close');
+        closeButton.addEventListener('click', () => this.dismissAnnouncement());
 
         // Trigger slide-down animation after a brief delay
         setTimeout(() => {
-            announcementBar.classList.add('show');
+            this.announcementBar.classList.add('show');
         }, 100);
 
         console.log("wokemaps: Showing announcement:", announcement.contents);
     }
 
     // Dismiss the current announcement
-    function dismissAnnouncement() {
-        if (!announcementBar || !currentAnnouncement) {
+    async dismissAnnouncement() {
+        if (!this.announcementBar || !this.currentAnnouncement) {
             return;
         }
 
         // Save dismissal timestamp
-        saveDismissalState(new Date().toISOString());
+        await this.saveDismissalState(new Date().toISOString());
 
         // Animate out
-        announcementBar.classList.remove('show');
+        this.announcementBar.classList.remove('show');
 
         // Remove from DOM after animation
         setTimeout(() => {
-            if (announcementBar && announcementBar.parentNode) {
-                announcementBar.parentNode.removeChild(announcementBar);
+            if (this.announcementBar && this.announcementBar.parentNode) {
+                this.announcementBar.parentNode.removeChild(this.announcementBar);
             }
-            announcementBar = null;
-            currentAnnouncement = null;
+            this.announcementBar = null;
+            this.currentAnnouncement = null;
         }, 300);
 
         console.log("wokemaps: Announcement dismissed");
     }
 
-    // Initialize announcements from loaded data
-    function initializeAnnouncements(announcementsList) {
-        announcements = announcementsList;
-        console.log(`wokemaps: Loaded ${announcements.length} announcements`);
-
-        // Find and show active announcement
-        const activeAnnouncement = findActiveAnnouncement(announcements);
+    // Show active announcement if one exists
+    async showActiveAnnouncement() {
+        const activeAnnouncement = await this.findActiveAnnouncement(this.announcements);
         if (activeAnnouncement) {
             // Wait for page to be ready before showing
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', () => {
-                    setTimeout(() => showAnnouncementBar(activeAnnouncement), 1000);
+                    setTimeout(() => this.showAnnouncementBar(activeAnnouncement), 1000);
                 });
             } else {
-                setTimeout(() => showAnnouncementBar(activeAnnouncement), 1000);
+                setTimeout(() => this.showAnnouncementBar(activeAnnouncement), 1000);
             }
         } else {
             console.log("wokemaps: No active announcements to show");
         }
     }
+}
 
-    // Export the initialization function for use by main content script
-    window.wokemapsAnnouncements = {
-        initialize: initializeAnnouncements
-    };
-
-})();
+// Export for use in other files
+if (typeof window !== 'undefined') {
+    window.AnnouncementManager = AnnouncementManager;
+}
