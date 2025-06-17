@@ -40,7 +40,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["default-options.json", "labels-v1.json", "images/icon16.png"],
+      "resources": ["default-options.json", "app-data-v1.json", "images/icon16.png"],
       "matches": ["*://*.google.com/*"]
     }
   ],

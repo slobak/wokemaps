@@ -41,7 +41,7 @@ class AppDataManager {
     async loadRemoteAppData() {
         try {
             console.log("wokemaps: Fetching fresh app data from remote source...");
-            const response = await fetch(`https://wokemaps-public.s3.us-east-2.amazonaws.com/labels-v${this.DATA_VERSION}.json`, {
+            const response = await fetch(`https://wokemaps-public.s3.us-east-2.amazonaws.com/app-data-v${this.DATA_VERSION}.json`, {
                 method: 'GET',
                 cache: 'no-cache',
                 headers: {
@@ -74,7 +74,7 @@ class AppDataManager {
     // Load app data from local bundled file
     async loadBuiltinAppData() {
         try {
-            const localUrl = chrome.runtime.getURL(`labels-v${this.DATA_VERSION}.json`);
+            const localUrl = chrome.runtime.getURL(`app-data-v${this.DATA_VERSION}.json`);
             const localResponse = await fetch(localUrl);
 
             if (!localResponse.ok) {

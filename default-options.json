@@ -5,6 +5,6 @@
     "enableRemoteConfigCache": true,
     "highlightGrid": false,
     "logLevel": 0,
-    "showDebugUi": true
+    "showDebugUi": false
   }
 }
