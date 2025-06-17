@@ -73,7 +73,6 @@
 
     function handleMouseUp(e) {
         const target = e.target;
-        console.log("mouseUp", target);
         const zoomInButton = document.getElementById('widget-zoom-in');
         const zoomOutButton = document.getElementById('widget-zoom-out');
         if (target === zoomInButton || zoomInButton.contains(target)  ||
@@ -90,7 +89,6 @@
     }
 
     function handlePotentialZoomInteraction() {
-        console.log("x3");
         window.dispatchEvent(new CustomEvent('wokemaps_potentialZoomInteraction', {}));
     }
 

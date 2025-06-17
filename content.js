@@ -46,181 +46,8 @@ console.log("wokemaps: extension initializing");
   }
 
   const mapCanvas = new MapCanvas();
-
-
-  // Pre-rendered labels system
-  let labelsCanvas = null;
-  let labelsContext = null;
-  let preRenderedLabels = [];
-  let fontLoaded = false;
-
-  // Load custom handwritten font
-  function loadCustomFont() {
-    const fontFace = new FontFace('Permanent Marker', 'url(https://fonts.gstatic.com/s/permanentmarker/v16/Fh4uPib9Iyv2ucM6pGQMWimMp004La2Cf5b6jlg.woff2)');
-    fontFace.load().then(font => {
-      document.fonts.add(font);
-      fontLoaded = true;
-      console.log("Custom font loaded successfully");
-      // Re-render labels with proper font
-      initializeLabelsCanvas();
-    }).catch(err => {
-      console.error("Failed to load font:", err);
-      // Initialize with fallback font
-      initializeLabelsCanvas();
-    });
-  }
-  loadCustomFont();
-
-  // Draw a label at the specified position and return its dimensions
-  function drawLabelAtPosition(context, x, y, text, color, background, scale, rotation = -1.5) {
-    context.save();
-    const fontSize = 24 * scale;
-
-    // Set font
-    if (fontLoaded) {
-      context.font = `bold ${fontSize}px "Permanent Marker", Arial, sans-serif`;
-    } else {
-      context.font = `bold ${fontSize}px Arial, sans-serif`;
-    }
-
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-
-    // Measure text
-    const lines = text.split('\n');
-    const textWidth = lines.reduce(
-        (accumulator, line) => Math.max(accumulator, context.measureText(line).width),
-        0
-    );
-    const lineHeight = fontSize + 6;
-    const textHeight = lineHeight * lines.length;
-    const padding = 8;
-
-    const totalWidth = textWidth + padding * 2;
-    const totalHeight = textHeight + padding * 2;
-
-    // Draw background
-    context.fillStyle = background;
-    context.fillRect(
-        x - totalWidth / 2,
-        y - totalHeight / 2,
-        totalWidth,
-        totalHeight
-    );
-
-    // Draw border
-    // context.strokeStyle = 'rgba(0, 0, 0, 0)';
-    // context.lineWidth = 1;
-    // context.strokeRect(
-    //     x - totalWidth / 2,
-    //     y - totalHeight / 2,
-    //     totalWidth,
-    //     totalHeight
-    // );
-
-    // Draw text with rotation
-    context.translate(x, y);
-    context.rotate(rotation * Math.PI / 180);
-
-    context.fillStyle = color;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      context.fillText(line, 0, (i - (lines.length - 1) / 2.0) * lineHeight);
-    }
-
-    context.restore();
-    return { width: totalWidth, height: totalHeight };
-  }
-
-  // Initialize the offscreen labels canvas
-  function initializeLabelsCanvas() {
-    // Create a large offscreen canvas for pre-rendered labels
-    labelsCanvas = document.createElement('canvas');
-    labelsCanvas.width = 512;
-    labelsCanvas.height = 2048;
-    labelsContext = labelsCanvas.getContext('2d');
-
-    // Clear previous labels
-    preRenderedLabels = [];
-    labelsContext.clearRect(0, 0, labelsCanvas.width, labelsCanvas.height);
-
-    let currentY = 50;
-    const spacing = 10;
-
-    // Pre-render each label
-    LABELS.forEach((label, index) => {
-      if (DEBUG_ONE_LABEL && index > 0) return;
-      const renderedLabel = preRenderLabel(label, currentY);
-      if (renderedLabel) {
-        preRenderedLabels.push({
-          ...label,
-          ...renderedLabel,
-          index
-        });
-        currentY += renderedLabel.height + spacing;
-      }
-    });
-
-    console.log(`Pre-rendered ${preRenderedLabels.length} labels`);
-  }
-
-  // Pre-render a single label to the offscreen canvas
-  function preRenderLabel(label, startY) {
-    const scale = label.scale || 1;
-    const color = label.color || "#000066";
-    const background = label.backgroundType === 'rect' ? '#ffffffb3' : '#00000000';
-    const rotation = label.rotation || -1.5;
-    const centerX = labelsCanvas.width / 2;
-    const centerY = startY + 100; // Estimate center, will be adjusted
-
-    // Draw the label and get its dimensions
-    const dimensions = drawLabelAtPosition(
-        labelsContext,
-        centerX,
-        centerY,
-        label.text,
-        color,
-        background,
-        scale,
-        rotation
-    );
-
-    // Check if we have enough space
-    if (startY + dimensions.height > labelsCanvas.height) {
-      console.warn(`Not enough space for label: ${label.text}`);
-      return null;
-    }
-
-    // Adjust the actual center Y position
-    const actualCenterY = startY + dimensions.height / 2;
-
-    // Clear and redraw at the correct position
-    labelsContext.clearRect(
-        centerX - dimensions.width / 2 - 10,
-        centerY - dimensions.height / 2 - 10,
-        dimensions.width + 20,
-        dimensions.height + 20
-    );
-
-    drawLabelAtPosition(
-        labelsContext,
-        centerX,
-        actualCenterY,
-        label.text,
-        color,
-        background,
-        scale,
-        rotation
-    );
-
-    return {
-      canvasX: centerX - dimensions.width / 2,
-      canvasY: actualCenterY - dimensions.height / 2,
-      width: dimensions.width,
-      height: dimensions.height
-    };
-  }
-
+  const labelRenderer = new LabelRenderer(mapCanvas);
+  await labelRenderer.initialize(LABELS);
 
   // Initialize immediately
   function initialize() {
@@ -318,7 +145,7 @@ console.log("wokemaps: extension initializing");
    * @param e
    */
   function onCanvasImageDrawn(e) {
-    if (!mapCanvas.context || !lastCenter || !preRenderedLabels.length) return;
+    if (!mapCanvas.context || !lastCenter || !labelRenderer.getPreRenderedLabels().length) return;
     const extent = e.detail.extent;
     const transform = e.detail.transform;
     const {dx, dy, dw, dh} = extent;
@@ -394,7 +221,7 @@ console.log("wokemaps: extension initializing");
     }
 
     // Filter labels by zoom level first
-    const zoomFilteredLabels = preRenderedLabels.filter(label =>
+    const zoomFilteredLabels = labelRenderer.getPreRenderedLabels().filter(label =>
         lastZoom >= label.minZoom && lastZoom <= label.maxZoom
     );
 
@@ -432,8 +259,8 @@ console.log("wokemaps: extension initializing");
     const tileSize = mapCanvas.tileSize;
 
     // Get the projected pixel position for both the label and map center
-    const labelPixel = googleMapsLatLngToPoint(lat, lng, lastZoom, tileSize);
-    const centerPixel = googleMapsLatLngToPoint(lastCenter.lat, lastCenter.lng, lastZoom, tileSize);
+    const labelPixel = labelRenderer.googleMapsLatLngToPoint(lat, lng, lastZoom, tileSize);
+    const centerPixel = labelRenderer.googleMapsLatLngToPoint(lastCenter.lat, lastCenter.lng, lastZoom, tileSize);
 
     if (!labelPixel || !centerPixel) return null;
 
@@ -486,7 +313,7 @@ console.log("wokemaps: extension initializing");
 
   // Draw label overlap directly to canvas coordinates
   function drawLabelOverlap(label, overlap, transform) {
-    if (!labelsCanvas || !mapCanvas.context) return;
+    if (!labelRenderer.labelsCanvas || !mapCanvas.context) return;
 
     const { canvasRegion, labelRegion } = overlap;
 
@@ -510,7 +337,7 @@ console.log("wokemaps: extension initializing");
       // relative to the origin of the canvas.
       context.resetTransform();
       context.drawImage(
-          labelsCanvas,
+          labelRenderer.labelsCanvas,
           srcX, srcY, srcW, srcH,
           destX, destY, destW, destH
       );
@@ -632,7 +459,7 @@ console.log("wokemaps: extension initializing");
       }
     } else {
       const transformValues = { translateX: 0, translateY: 0, scale: 1 };
-      //logTransformIfDifferent("parent", transformValues, parentTransform);
+      logTransformIfDifferent("parent", transformValues, parentTransform);
       parentTransform = transformValues;
     }
 
@@ -775,82 +602,9 @@ console.log("wokemaps: extension initializing");
     LABELS.forEach(label => {
       // Check if within this label's zoom range
       if (zoom >= label.minZoom && zoom <= label.maxZoom) {
-        drawLabel(label);
+        labelRenderer.drawLabelToCanvas(label, { center: lastCenter, zoom: lastZoom }, canvasTransform);
       }
     });
-  }
-
-  // Draw a single label (fallback method)
-  function drawLabel(label) {
-    // TODO: normalize all data on load so default values applied once
-    const { lat, lng, text } = label;
-    const color = label.color || "#000066";
-    const scale = label.scale || 1.0;
-    const labelOffsetX = label.xOffset || 0;
-    const labelOffsetY = label.yOffset || 0;
-    const background = label.backgroundType === 'rect' ? '#ffffffb3' : '#00000000';
-    const tileSize = mapCanvas.tileSize;
-
-    // Calculate the pixel position using the Mercator projection
-    const labelPixel = googleMapsLatLngToPoint(lat, lng, lastZoom, tileSize);
-    const centerPixel = googleMapsLatLngToPoint(lastCenter.lat, lastCenter.lng, lastZoom, tileSize);
-
-    if (!labelPixel || !centerPixel) return;
-
-    // Calculate base offset from center (world coordinates)
-    const worldOffsetX = labelPixel.x - centerPixel.x;
-    const worldOffsetY = labelPixel.y - centerPixel.y;
-
-    // Calculate canvas center (in canvas pixels)
-    const canvasCenter = mapCanvas.getCenter();
-
-    // Apply the correct formula: SUBTRACT transform with retina multiplier
-    // All calculations are in canvas pixel coordinates
-
-    // Get parent dimensions for the tile alignment calculation
-    const parentDimensions = mapCanvas.getParentDimensions();
-
-    // Calculate the tile alignment offset based on parent size
-    // X is affected by width, Y by height
-    const tileAlignmentX = -tileSize + (parentDimensions.width % (tileSize / 2));
-    const tileAlignmentY = -tileSize + (parentDimensions.height % (tileSize / 2));
-
-    // This is the "center point" of the label.
-    const x = canvasCenter.x + worldOffsetX + labelOffsetX -
-        (canvasTransform.translateX * mapCanvas.transformMultiplier) + tileAlignmentX;
-    const y = canvasCenter.y + worldOffsetY + labelOffsetY -
-        (canvasTransform.translateY * mapCanvas.transformMultiplier) + tileAlignmentY;
-
-    // Use the shared label drawing function
-    drawLabelAtPosition(mapCanvas.context, x, y, text, color, background, scale, -1.5);
-  }
-
-  // Accurate Google Maps style projection with tile size parameter
-  function googleMapsLatLngToPoint(lat, lng, zoom, tileSize) {
-    try {
-      // First, we need the normalized coordinates between 0 and 1
-      const normX = (lng + 180) / 360;
-
-      // Convert latitude to radians for sin calculation
-      const latRad = lat * Math.PI / 180;
-
-      // Apply the Mercator projection formula
-      const mercN = Math.log(Math.tan((Math.PI / 4) + (latRad / 2)));
-      const normY = 0.5 - mercN / (2 * Math.PI);
-
-      // Scale by the world size at this zoom level
-      const scale = Math.pow(2, zoom);
-      const worldSize = scale * tileSize;
-
-      // Convert to pixel coordinates
-      const pixelX = Math.floor(normX * worldSize);
-      const pixelY = Math.floor(normY * worldSize);
-
-      return { x: pixelX, y: pixelY };
-    } catch (e) {
-      console.error("Error in googleMapsLatLngToPoint:", e);
-      return null;
-    }
   }
 
   // Start the init process
