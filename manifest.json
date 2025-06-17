@@ -24,7 +24,11 @@
       "run_at": "document_start"
     }, {
       "matches": ["*://*.google.com/maps/*"],
-      "js": ["announce.js", "content.js"],
+      "js": [
+        "options-manager.js",
+        "announce.js",
+        "content.js"
+      ],
       "css": ["styles.css"],
       "run_at": "document_start"
     }

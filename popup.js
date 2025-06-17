@@ -1,59 +1,11 @@
 // Woke Maps Popup Configuration Panel
 
 document.addEventListener('DOMContentLoaded', async function() {
-    const OPTIONS_STORAGE_KEY = 'wokemaps_options';
     const CONFIG_CACHE_KEY = 'wokemaps_config_cache';
     const CONFIG_CACHE_EXPIRY_KEY = 'wokemaps_config_expiry';
     const ANNOUNCEMENT_DISMISSAL_KEY = 'wokemaps_announcement_dismissals';
 
-    let currentOptions = {};
-
-    // Load default options
-    async function loadDefaultOptions() {
-        try {
-            const response = await fetch(chrome.runtime.getURL('default-options.json'));
-            if (!response.ok) {
-                throw new Error(`Failed to load default options: ${response.status}`);
-            }
-            return await response.json();
-        } catch (e) {
-            console.error('Failed to load default options:', e);
-            return {
-                debug: {
-                    enableRemoteLabels: true,
-                    highlightGrid: false,
-                    logLevel: 0,
-                    showDebugUi: false
-                }
-            };
-        }
-    }
-
-    // Load current options from Chrome storage
-    async function loadCurrentOptions() {
-        try {
-            const result = await chrome.storage.sync.get([OPTIONS_STORAGE_KEY]);
-            if (result[OPTIONS_STORAGE_KEY]) {
-                return result[OPTIONS_STORAGE_KEY];
-            }
-        } catch (e) {
-            console.warn('Failed to load stored options:', e);
-        }
-
-        // Fall back to default options
-        return await loadDefaultOptions();
-    }
-
-    // Save options to Chrome storage
-    async function saveOptions(options) {
-        try {
-            await chrome.storage.sync.set({ [OPTIONS_STORAGE_KEY]: options });
-            return true;
-        } catch (e) {
-            console.error('Failed to save options:', e);
-            return false;
-        }
-    }
+    const optionsManager = new OptionsManager();
 
     // Show status message
     function showStatus(message, type = 'success') {
@@ -69,10 +21,9 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Initialize the popup
     async function initialize() {
-        const defaultOptions = await loadDefaultOptions();
-        currentOptions = await loadCurrentOptions();
-
-        const showDebugUi = defaultOptions.debug?.showDebugUi || false;
+        const options = await optionsManager.getOptions();
+        const debugOptions = options.debug || {};
+        const showDebugUi = debugOptions.showDebugUi || false;
 
         if (showDebugUi) {
             document.getElementById('simple-view').style.display = 'none';
@@ -85,8 +36,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // Setup debug view with current values
-    function setupDebugView() {
-        const debugOptions = currentOptions.debug || {};
+    async function setupDebugView() {
+        const options = await optionsManager.getOptions();
+        const debugOptions = options.debug || {};
 
         // Set current values
         document.getElementById('enableRemoteConfig').checked = debugOptions.enableRemoteConfig !== false;
@@ -95,42 +47,50 @@ document.addEventListener('DOMContentLoaded', async function() {
         document.getElementById('logLevel').value = debugOptions.logLevel || 0;
 
         // Add event listeners for automatic saving
-        document.getElementById('enableRemoteConfig').addEventListener('change', function() {
+        document.getElementById('enableRemoteConfig').addEventListener('change', async function() {
+            const currentOptions = await optionsManager.getOptions();
             currentOptions.debug = currentOptions.debug || {};
             currentOptions.debug.enableRemoteConfig = this.checked;
-            if (saveOptions(currentOptions)) {
+
+            if (await optionsManager.saveOptions(currentOptions)) {
                 showStatus('Remote config setting saved');
             } else {
                 showStatus('Failed to save setting', 'error');
             }
         });
 
-        document.getElementById('enableRemoteConfigCache').addEventListener('change', function() {
+        document.getElementById('enableRemoteConfigCache').addEventListener('change', async function() {
+            const currentOptions = await optionsManager.getOptions();
             currentOptions.debug = currentOptions.debug || {};
             currentOptions.debug.enableRemoteConfigCache = this.checked;
-            if (saveOptions(currentOptions)) {
+
+            if (await optionsManager.saveOptions(currentOptions)) {
                 showStatus('Remote config cache setting saved');
             } else {
                 showStatus('Failed to save setting', 'error');
             }
         });
 
-        document.getElementById('highlightGrid').addEventListener('change', function() {
+        document.getElementById('highlightGrid').addEventListener('change', async function() {
+            const currentOptions = await optionsManager.getOptions();
             currentOptions.debug = currentOptions.debug || {};
             currentOptions.debug.highlightGrid = this.checked;
-            if (saveOptions(currentOptions)) {
+
+            if (await optionsManager.saveOptions(currentOptions)) {
                 showStatus('Grid highlight setting saved');
             } else {
                 showStatus('Failed to save setting', 'error');
             }
         });
 
-        document.getElementById('logLevel').addEventListener('change', function() {
+        document.getElementById('logLevel').addEventListener('change', async function() {
             const value = parseInt(this.value);
             if (value >= 0 && value <= 3) {
+                const currentOptions = await optionsManager.getOptions();
                 currentOptions.debug = currentOptions.debug || {};
                 currentOptions.debug.logLevel = value;
-                if (saveOptions(currentOptions)) {
+
+                if (await optionsManager.saveOptions(currentOptions)) {
                     showStatus('Log level saved');
                 } else {
                     showStatus('Failed to save setting', 'error');
@@ -141,13 +101,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Add event listeners for action buttons
         document.getElementById('resetOptions').addEventListener('click', async function() {
             try {
-                const defaultOptions = await loadDefaultOptions();
-                currentOptions = { ...defaultOptions };
-
-                await chrome.storage.sync.remove([OPTIONS_STORAGE_KEY]);
+                await optionsManager.resetToDefaults();
 
                 // Update UI with reset values
-                const debugOptions = currentOptions.debug || {};
+                const options = await optionsManager.getOptions();
+                const debugOptions = options.debug || {};
+
                 document.getElementById('enableRemoteConfig').checked = debugOptions.enableRemoteConfig !== false;
                 document.getElementById('enableRemoteConfigCache').checked = debugOptions.enableRemoteConfigCache !== false;
                 document.getElementById('highlightGrid').checked = debugOptions.highlightGrid || false;

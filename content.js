@@ -204,8 +204,6 @@ console.log("wokemaps: extension initializing");
 
   loadCustomFont();
 
-  loadCustomFont();
-
   // Draw a label at the specified position and return its dimensions
   function drawLabelAtPosition(context, x, y, text, color, background, scale, rotation = -1.5) {
     context.save();
