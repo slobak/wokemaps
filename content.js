@@ -6,36 +6,9 @@ console.log("wokemaps: extension initializing");
 
 (async function() {
 
-  // Load options system first
-  const OPTIONS_STORAGE_KEY = 'wokemaps_options';
-  let options = {};
-
-  async function loadOptions() {
-    try {
-      // Try to load from storage first
-      const storedOptions = (await chrome.storage.sync.get([OPTIONS_STORAGE_KEY]))[OPTIONS_STORAGE_KEY];
-      if (storedOptions) {
-        console.log("wokemaps: Loaded options from storage", storedOptions);
-        return storedOptions;
-      }
-    } catch (e) {
-      console.warn("wokemaps: Failed to load options from storage:", e);
-    }
-
-    // Fall back to default options
-    const defaultOptionsUrl = chrome.runtime.getURL('default-options.json');
-    const response = await fetch(defaultOptionsUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to load default options: ${response.status}`);
-    }
-    const defaultOptions = await response.json();
-    console.log("wokemaps: Loaded default options", defaultOptions);
-
-    return defaultOptions;
-  }
-
-  // Load options at startup
-  options = await loadOptions();
+// Initialize options manager
+  const optionsManager = new OptionsManager();
+  const options = await optionsManager.getOptions();
   const debugOptions = options.debug || {};
 
   // Use options instead of constants
