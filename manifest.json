@@ -31,6 +31,7 @@
         "map-canvas.js",
         "map-state.js",
         "label-renderer.js",
+        "overlay-engine.js",
         "content.js"
       ],
       "css": ["styles.css"],
