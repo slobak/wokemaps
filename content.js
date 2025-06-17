@@ -11,43 +11,25 @@ console.log("wokemaps: extension initializing");
   const options = await optionsManager.getOptions();
   const debugOptions = options.debug || {};
 
-  // Use options instead of constants
-  const HIGHLIGHT_GRID = debugOptions.highlightGrid || false;
-  const DEBUG_ONE_LABEL = debugOptions.debugOneLabel || false;
-  const LOG_LEVEL = debugOptions.logLevel || 0;
-
   // Enhanced logging function
   function log(level, ...args) {
-    if (level <= LOG_LEVEL) {
+    if (level <= (debugOptions.logLevel || 0)) {
       console.log("wokemaps:", ...args);
     }
   }
 
-  // Track state
-  let lastCenter = null;
-  let lastZoom = 0;
-  let observer = null;
-  let zoomInteractionTimeout = null;
-  let isPotentiallyZooming = false;
-
-  // Transform tracking
-  let canvasTransform = { translateX: 0, translateY: 0, scale: 1 };
-  let parentTransform = { translateX: 0, translateY: 0, scale: 1 };
-  let parentIsZero = false;
-
   // Load app data
   const appDataManager = new AppDataManager(optionsManager);
-  const LABELS = await appDataManager.getLabels();
+  const allLabels = await appDataManager.getLabels();
 
-  if (await optionsManager.getOption('enableAnnouncements', true)) {
-    const announcements = await appDataManager.getAnnouncements();
-    window.announcementManager = new AnnouncementManager(announcements);
-    // Runs on its own.
-  }
+  const announcements = (await optionsManager.getOption('enableAnnouncements', true)) ?
+      (await appDataManager.getAnnouncements()) : [];
+  const announcementManager = new AnnouncementManager(announcements);
 
   const mapCanvas = new MapCanvas();
+  const mapState = new MapState(mapCanvas);
   const labelRenderer = new LabelRenderer(mapCanvas);
-  await labelRenderer.initialize(LABELS);
+  await labelRenderer.initialize(allLabels);
 
   // Initialize immediately
   function initialize() {
@@ -58,13 +40,17 @@ console.log("wokemaps: extension initializing");
       return;
     }
 
-    // Get initial values
-    updateCanvasTransform();
-    updateParentTransform();
-    updatePositionFromUrl();
+    // Initialize map state tracking
+    mapState.initialize();
+    mapState.addChangeListener((c) => {
+      if (c === 'zoomResolved') {
+        // A zoom operation was in progress and so we suspended drawing overlays in response to redraws.
+        // Now we must draw labels.
+        drawAllLabels();
+      }
+    });
 
-    // Start observing and drawing
-    setupObserver();
+    window.addEventListener('wokemaps_canvasDrawImageCalled', onCanvasImageDrawn);
   }
 
   // Track tile rendering sequences
@@ -145,7 +131,7 @@ console.log("wokemaps: extension initializing");
    * @param e
    */
   function onCanvasImageDrawn(e) {
-    if (!mapCanvas.context || !lastCenter || !labelRenderer.getPreRenderedLabels().length) return;
+    if (!mapCanvas.context || !mapState.center || !labelRenderer.getPreRenderedLabels().length) return;
     const extent = e.detail.extent;
     const transform = e.detail.transform;
     const {dx, dy, dw, dh} = extent;
@@ -168,12 +154,12 @@ console.log("wokemaps: extension initializing");
     // Check if we should start a new sequence
     if (isTile && !sequenceInProgress) {
       // Make sure our transform info is up to date.
-      updateCanvasTransform();
-      updateParentTransform();
+      mapState.updateCanvasTransform();
+      mapState.updateParentTransform();
       recordTileInSequence(extent, transform);
     }
 
-    if (isPotentiallyZooming) {
+    if (mapState.isPotentiallyZooming) {
       // We have recently processed an interaction that could potentially zoom the view and our state will be
       // out of sync, causing us to render in the wrong place, leaving a visual artifact without recourse.
       // Instead of rendering, wait until zoom settles.
@@ -210,7 +196,7 @@ console.log("wokemaps: extension initializing");
       bottom: bottomRight.y,
     };
 
-    if (HIGHLIGHT_GRID && isTile) {
+    if (debugOptions.highlightGrid && isTile) {
       const context = mapCanvas.context;
       context.save();
       context.resetTransform();
@@ -222,7 +208,7 @@ console.log("wokemaps: extension initializing");
 
     // Filter labels by zoom level first
     const zoomFilteredLabels = labelRenderer.getPreRenderedLabels().filter(label =>
-        lastZoom >= label.minZoom && lastZoom <= label.maxZoom
+        mapState.zoom >= label.minZoom && mapState.zoom <= label.maxZoom
     );
 
     // Process each potentially visible label
@@ -255,12 +241,12 @@ console.log("wokemaps: extension initializing");
 
   // Convert lat/lng to canvas pixel coordinates using current map state
   function latLngToCanvasPixel(lat, lng) {
-    if (!lastCenter) return null;
+    if (!mapState.center) return null;
     const tileSize = mapCanvas.tileSize;
 
     // Get the projected pixel position for both the label and map center
-    const labelPixel = labelRenderer.googleMapsLatLngToPoint(lat, lng, lastZoom, tileSize);
-    const centerPixel = labelRenderer.googleMapsLatLngToPoint(lastCenter.lat, lastCenter.lng, lastZoom, tileSize);
+    const labelPixel = labelRenderer.googleMapsLatLngToPoint(lat, lng, mapState.zoom, tileSize);
+    const centerPixel = labelRenderer.googleMapsLatLngToPoint(mapState.center.lat, mapState.center.lng, mapState.zoom, tileSize);
 
     if (!labelPixel || !centerPixel) return null;
 
@@ -276,9 +262,9 @@ console.log("wokemaps: extension initializing");
     const tileAlignmentY = -tileSize + (parentDimensions.height % (tileSize / 2));
 
     const x = canvasCenter.x + worldOffsetX -
-        (canvasTransform.translateX * mapCanvas.transformMultiplier) + tileAlignmentX;
+        (mapState.canvasTransform.translateX * mapCanvas.transformMultiplier) + tileAlignmentX;
     const y = canvasCenter.y + worldOffsetY -
-        (canvasTransform.translateY * mapCanvas.transformMultiplier) + tileAlignmentY;
+        (mapState.canvasTransform.translateY * mapCanvas.transformMultiplier) + tileAlignmentY;
 
     return { x, y };
   }
@@ -356,253 +342,17 @@ console.log("wokemaps: extension initializing");
     };
   }
 
-  function setupMapsHooks() {
-    window.addEventListener('wokemaps_canvasDrawImageCalled', onCanvasImageDrawn);
-    window.addEventListener('wokemaps_urlChanged', onMapsUrlChanged);
-    window.addEventListener('wokemaps_potentialZoomInteraction', handlePotentialZoomInteraction);
-    console.log('wokemaps: hook listeners initialized');
-  }
-
-  function onMapsUrlChanged(e) {
-    if (parentIsZero) {
-      console.log("onMapsUrlChanged: Parent transform is zero - updating center from URL");
-      updatePositionFromUrl();
-      if (zoomInteractionTimeout !== null) {
-        console.log("zoom resolved, redrawing")
-        clearTimeout(zoomInteractionTimeout);
-        zoomInteractionTimeout = null;
-        isPotentiallyZooming = false;
-        updateCanvasTransform();
-        updateParentTransform();
-        drawAllLabels();
-      }
-    }
-  }
-
-  // Set up MutationObserver to watch for map changes
-  function setupObserver() {
-    // Set up the observer to watch for DOM changes
-    observer = new MutationObserver(handleMutations);
-
-    // Observe the canvas for attribute changes
-    observer.observe(mapCanvas.canvas, {
-      attributes: true,
-      attributeFilter: ['style', 'width', 'height']
-    });
-
-    // Observe the canvas parent for transform changes
-    if (mapCanvas.parent) {
-      observer.observe(mapCanvas.parent, {
-        attributes: true,
-        attributeFilter: ['style', 'class']
-      });
-    }
-
-    // Watch for when map tiles are redrawn
-    setupMapsHooks();
-
-    console.log("MutationObserver and event listeners set up");
-  }
-
-
-  // Handle DOM mutations
-  function handleMutations(mutations) {
-    let shouldUpdateCanvasTransform = false;
-    let shouldUpdateParentTransform = false;
-
-    for (const mutation of mutations) {
-      // If the mutation involves style changes on canvas or parent
-      if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-        if (mutation.target === mapCanvas.canvas) {
-          shouldUpdateCanvasTransform = true;
-        } else if (mutation.target === mapCanvas.parent) {
-          shouldUpdateParentTransform = true;
-        }
-      }
-    }
-
-    if (shouldUpdateCanvasTransform) {
-      updateCanvasTransform();
-    }
-
-    if (shouldUpdateParentTransform) {
-      updateParentTransform();
-    }
-  }
-
-  // Update canvas transform information
-  function updateCanvasTransform() {
-    if (!mapCanvas.canvas) return;
-
-    const canvasStyle = window.getComputedStyle(mapCanvas.canvas);
-    const canvasTransformStr = canvasStyle.transform || canvasStyle.webkitTransform;
-
-    if (canvasTransformStr && canvasTransformStr !== 'none') {
-      const transformValues = parseTransform(canvasTransformStr);
-      logTransformIfDifferent("canvas", transformValues, canvasTransform);
-      canvasTransform = transformValues;
-    }
-  }
-
-  // Update parent transform information
-  function updateParentTransform() {
-    if (!mapCanvas.parent) return;
-
-    const parentStyle = window.getComputedStyle(mapCanvas.parent);
-    const parentTransformStr = parentStyle.transform || parentStyle.webkitTransform;
-
-    if (parentTransformStr && parentTransformStr !== 'none') {
-      const transformValues = parseTransform(parentTransformStr);
-      if (transformValues) {
-        //logTransformIfDifferent("parent", transformValues, parentTransform);
-        parentTransform = transformValues;
-      }
-    } else {
-      const transformValues = { translateX: 0, translateY: 0, scale: 1 };
-      logTransformIfDifferent("parent", transformValues, parentTransform);
-      parentTransform = transformValues;
-    }
-
-    // Check if parent transform is zero
-    const wasZero = parentIsZero;
-    parentIsZero = Math.abs(parentTransform.translateX) < 1 && Math.abs(parentTransform.translateY) < 1;
-
-    // If parent just went to zero, update the center from URL
-    if (!wasZero && parentIsZero) {
-      console.log("Parent transform went to zero - updating center from URL");
-      updatePositionFromUrl();
-    }
-  }
-
-  function logTransformIfDifferent(name, newTransform, oldTransform) {
-    if (newTransform.translateX !== oldTransform.translateX ||
-        newTransform.translateY !== oldTransform.translateY ||
-        newTransform.scale !== oldTransform.scale) {
-      console.log(`${name} transform changes`, newTransform);
-    }
-  }
-
-  // Parse a transform string into component values
-  function parseTransform(transformStr) {
-    try {
-      // Handle matrix format: matrix(a, b, c, d, tx, ty)
-      if (transformStr.startsWith('matrix')) {
-        const matrixMatch = transformStr.match(/matrix\(([^)]+)\)/);
-        if (matrixMatch && matrixMatch[1]) {
-          const values = matrixMatch[1].split(',').map(v => parseFloat(v.trim()));
-          if (values.length === 6) {
-            const translateX = values[4];
-            const translateY = values[5];
-            const scale = Math.sqrt(values[0] * values[0] + values[1] * values[1]);
-
-            return { translateX, translateY, scale };
-          }
-        }
-      }
-
-      // Handle translate and scale separately
-      let translateX = 0;
-      let translateY = 0;
-      let scale = 1;
-
-      // Extract translate values
-      const translateMatch = transformStr.match(/translate\(([^)]+)\)/);
-      if (translateMatch && translateMatch[1]) {
-        const values = translateMatch[1].split(',').map(v => parseFloat(v.trim()));
-        if (values.length >= 1) translateX = values[0];
-        if (values.length >= 2) translateY = values[1];
-      }
-
-      // Extract translateX/Y values
-      const translateXMatch = transformStr.match(/translateX\(([^)]+)\)/);
-      if (translateXMatch && translateXMatch[1]) {
-        translateX = parseFloat(translateXMatch[1]);
-      }
-
-      const translateYMatch = transformStr.match(/translateY\(([^)]+)\)/);
-      if (translateYMatch && translateYMatch[1]) {
-        translateY = parseFloat(translateYMatch[1]);
-      }
-
-      // Extract scale value
-      const scaleMatch = transformStr.match(/scale\(([^)]+)\)/);
-      if (scaleMatch && scaleMatch[1]) {
-        scale = parseFloat(scaleMatch[1]);
-      }
-
-      return { translateX, translateY, scale };
-    } catch (e) {
-      console.error("Error parsing transform:", e);
-      return { translateX: 0, translateY: 0, scale: 1 };
-    }
-  }
-
-  // Handle map interactions that might result in a zoom (button click, wheel, etc.)
-  function handlePotentialZoomInteraction() {
-    // Suspend redrawing - zoom may be changing and we could draw in the wrong place.
-    // Better to disappear/flicker for a bit.
-    isPotentiallyZooming = true;
-    console.log("potential zoom interaction, suspending redraw");
-
-    // Update transforms
-    if (zoomInteractionTimeout) {
-      clearTimeout(zoomInteractionTimeout);
-    }
-    zoomInteractionTimeout = setTimeout(() => {
-      console.log("zoom interaction timeout, redrawing");
-      zoomInteractionTimeout = null;
-      isPotentiallyZooming = false;
-      updatePositionFromUrl();
-      updateCanvasTransform();
-      updateParentTransform();
-      drawAllLabels();
-    }, 1000);
-  }
-
-  // Update position information from URL
-  function updatePositionFromUrl() {
-    // Only proceed if parent transform is zero or near zero
-    if (!parentIsZero) {
-      return;
-    }
-
-    const url = window.location.href;
-
-    // Extract center coordinates
-    lastCenter = null;
-    const centerMatch = url.match(/@([-\d.]+),([-\d.]+)/);
-    if (centerMatch && centerMatch.length >= 3) {
-      const lat = parseFloat(centerMatch[1]);
-      const lng = parseFloat(centerMatch[2]);
-
-      if (!isNaN(lat) && !isNaN(lng)) {
-        lastCenter = { lat, lng };
-      }
-    }
-
-    // Extract zoom level
-    // TODO: fix for satellite mode
-    lastZoom = null;
-    const zoomMatch = url.match(/@[-\d.]+,[-\d.]+,(\d+\.?\d*)z/);
-    if (zoomMatch && zoomMatch.length >= 2) {
-      const zoom = parseFloat(zoomMatch[1]);
-      if (!isNaN(zoom)) {
-        lastZoom = Math.round(zoom);
-      }
-    }
-  }
-
   // Draw all labels on the canvas (fallback method)
   function drawAllLabels() {
-    if (!mapCanvas.canvas || !mapCanvas.context || !lastCenter) return;
+    if (!mapCanvas.canvas || !mapCanvas.context || !mapState.center) return;
 
-    const zoom = lastZoom;
+    const zoom = mapState.zoom;
 
     // Draw each label
-    LABELS.forEach(label => {
+    allLabels.forEach(label => {
       // Check if within this label's zoom range
       if (zoom >= label.minZoom && zoom <= label.maxZoom) {
-        labelRenderer.drawLabelToCanvas(label, { center: lastCenter, zoom: lastZoom }, canvasTransform);
+        labelRenderer.drawLabelToCanvas(label, { center: mapState.center, zoom: mapState.zoom }, mapState.canvasTransform);
       }
     });
   }

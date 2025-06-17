@@ -29,6 +29,7 @@
         "app-data-manager.js",
         "announcement-manager.js",
         "map-canvas.js",
+        "map-state.js",
         "label-renderer.js",
         "content.js"
       ],
