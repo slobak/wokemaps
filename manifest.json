@@ -28,6 +28,7 @@
         "options-manager.js",
         "app-data-manager.js",
         "announcement-manager.js",
+        "map-canvas.js",
         "content.js"
       ],
       "css": ["styles.css"],

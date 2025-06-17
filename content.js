@@ -6,17 +6,14 @@ console.log("wokemaps: extension initializing");
 
 (async function() {
 
-// Initialize options manager
+  // Initialize options manager
   const optionsManager = new OptionsManager();
   const options = await optionsManager.getOptions();
   const debugOptions = options.debug || {};
 
   // Use options instead of constants
-  const LABEL_VERSION = 1;  // TODO: switch to "config version"
   const HIGHLIGHT_GRID = debugOptions.highlightGrid || false;
   const DEBUG_ONE_LABEL = debugOptions.debugOneLabel || false;
-  const USE_LABEL_REMOTE = debugOptions.enableRemoteConfig !== false; // Default to true
-  const USE_LABEL_CACHE = debugOptions.enableRemoteConfigCache !== false;
   const LOG_LEVEL = debugOptions.logLevel || 0;
 
   // Enhanced logging function
@@ -27,9 +24,6 @@ console.log("wokemaps: extension initializing");
   }
 
   // Track state
-  let mapCanvas = null;
-  let mapContext = null;
-  let canvasParent = null;
   let lastCenter = null;
   let lastZoom = 0;
   let observer = null;
@@ -39,11 +33,20 @@ console.log("wokemaps: extension initializing");
   // Transform tracking
   let canvasTransform = { translateX: 0, translateY: 0, scale: 1 };
   let parentTransform = { translateX: 0, translateY: 0, scale: 1 };
-
-  // Parameters
-  let tileSize = 256;
-  let transformMultiplier = 1;
   let parentIsZero = false;
+
+  // Load app data
+  const appDataManager = new AppDataManager(optionsManager);
+  const LABELS = await appDataManager.getLabels();
+
+  if (await optionsManager.getOption('enableAnnouncements', true)) {
+    const announcements = await appDataManager.getAnnouncements();
+    window.announcementManager = new AnnouncementManager(announcements);
+    // Runs on its own.
+  }
+
+  const mapCanvas = new MapCanvas();
+
 
   // Pre-rendered labels system
   let labelsCanvas = null;
@@ -66,18 +69,6 @@ console.log("wokemaps: extension initializing");
       initializeLabelsCanvas();
     });
   }
-
-
-  // Load app data
-  const appDataManager = new AppDataManager(optionsManager);
-  const LABELS = await appDataManager.getLabels();
-
-  if (await optionsManager.getOption('enableAnnouncements', true)) {
-    const announcements = await appDataManager.getAnnouncements();
-    window.announcementManager = new AnnouncementManager(announcements);
-    // Runs on its own.
-  }
-
   loadCustomFont();
 
   // Draw a label at the specified position and return its dimensions
@@ -230,61 +221,15 @@ console.log("wokemaps: extension initializing");
     };
   }
 
-  function findMapRenderingCanvas() {
-    // Find ONLY the map rendering canvas that's tile-based
-    const canvases = document.querySelectorAll('canvas');
-    let mapRenderingCanvas = null;
-    let maxArea = 0;
-
-    console.log(`Found ${canvases.length} canvas elements`);
-
-    for (let canvas of canvases) {
-      const width = canvas.width;
-      const height = canvas.height;
-      const area = width * height;
-
-      console.log(`Canvas: ${width}x${height}, area: ${area}, tile-based: ${width % 256 === 0 && height % 256 === 0}`);
-
-      // ONLY accept canvases where both dimensions are multiples of 256 (tile-based rendering)
-      // and it's large enough to be the main map
-      if (width > 0 && height > 0 &&
-          width % 256 === 0 && height % 256 === 0 &&
-          area > maxArea && area > 100000) { // Minimum size check
-        try {
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            mapRenderingCanvas = canvas;
-            maxArea = area;
-            console.log(`Selected tile-based canvas: ${width}x${height}`);
-          }
-        } catch (e) {
-          console.log("Error accessing canvas:", e);
-        }
-      }
-    }
-    return mapRenderingCanvas;
-  }
 
   // Initialize immediately
   function initialize() {
-    // Detect retina display and set appropriate parameters
-    detectDisplayType();
-
-    // Try to find the map rendering canvas. If we can't, try again after a short delay
-    // in the hopes that further initialization yields the right canvas.
-    const mapRenderingCanvas = findMapRenderingCanvas();
-    if (!mapRenderingCanvas) {
+    // Try to initialize the map canvas
+    if (!mapCanvas.tryInitialize()) {
       console.log("No tile-based canvas found, retrying in 500ms");
       setTimeout(initialize, 500);
       return;
     }
-
-    mapCanvas = mapRenderingCanvas;
-    mapContext = mapCanvas.getContext('2d', { willReadFrequently: true });
-    canvasParent = mapCanvas.parentElement;
-
-    console.log(`Using canvas: ${mapCanvas.width}x${mapCanvas.height}`);
-    console.log(`Display type: Tile size ${tileSize}px, Transform multiplier ${transformMultiplier}x`);
 
     // Get initial values
     updateCanvasTransform();
@@ -293,70 +238,6 @@ console.log("wokemaps: extension initializing");
 
     // Start observing and drawing
     setupObserver();
-  }
-
-  // Detect display type (retina vs standard) and set parameters
-  function detectDisplayType() {
-    const devicePixelRatio = window.devicePixelRatio || 1;
-
-    if (devicePixelRatio > 1.5) {
-      tileSize = 512;
-      transformMultiplier = 2;
-      console.log(`Detected retina display (pixel ratio: ${devicePixelRatio})`);
-    } else {
-      tileSize = 256;
-      transformMultiplier = 1;
-      console.log(`Detected standard display (pixel ratio: ${devicePixelRatio})`);
-    }
-  }
-
-  // Get parent div dimensions properly
-  function getParentDimensions() {
-    if (!canvasParent) {
-      console.error("No canvas parent found");
-      return { width: 0, height: 0 };
-    }
-
-    // Method 1: Try getBoundingClientRect first
-    const rect = canvasParent.getBoundingClientRect();
-    if (rect.width > 0 && rect.height > 0) {
-      console.log(`Parent dimensions from getBoundingClientRect: ${rect.width}×${rect.height}`);
-      return { width: Math.round(rect.width), height: Math.round(rect.height) };
-    }
-
-    // Method 2: Try offsetWidth/Height
-    if (canvasParent.offsetWidth > 0 && canvasParent.offsetHeight > 0) {
-      console.log(`Parent dimensions from offset: ${canvasParent.offsetWidth}×${canvasParent.offsetHeight}`);
-      return { width: canvasParent.offsetWidth, height: canvasParent.offsetHeight };
-    }
-
-    // Method 3: Try clientWidth/Height
-    if (canvasParent.clientWidth > 0 && canvasParent.clientHeight > 0) {
-      console.log(`Parent dimensions from client: ${canvasParent.clientWidth}×${canvasParent.clientHeight}`);
-      return { width: canvasParent.clientWidth, height: canvasParent.clientHeight };
-    }
-
-    // Method 4: Get computed style
-    const computedStyle = window.getComputedStyle(canvasParent);
-    const width = parseInt(computedStyle.width, 10);
-    const height = parseInt(computedStyle.height, 10);
-
-    if (!isNaN(width) && !isNaN(height) && width > 0 && height > 0) {
-      console.log(`Parent dimensions from computed style: ${width}×${height}`);
-      return { width, height };
-    }
-
-    // If all else fails, check the grandparent (sometimes the map container is nested)
-    const grandParent = canvasParent.parentElement;
-    if (grandParent) {
-      const grandRect = grandParent.getBoundingClientRect();
-      if (grandRect.width > 0 && grandRect.height > 0) {
-        return { width: Math.round(grandRect.width), height: Math.round(grandRect.height) };
-      }
-    }
-
-    console.error("Could not determine parent dimensions");
-    return { width: 0, height: 0 };
   }
 
   // Track tile rendering sequences
@@ -416,7 +297,7 @@ console.log("wokemaps: extension initializing");
     if (firstTileInSequence === null) {
       // Only need record the first tile
       const {dx, dy, dw, dh} = extent;
-      const hash = getTileContentHash(mapContext, transform, dx, dy, dw, dh);
+      const hash = getTileContentHash(mapCanvas.context, transform, dx, dy, dw, dh);
       firstTileInSequence = hash >>> 0;
       console.log(`Maps is rendering tiles, first is ${firstTileInSequence.toString(16)}`);
       sequenceMayHaveNewTransform = firstTileInSequence !== previousFirstTileInSequence;
@@ -437,11 +318,12 @@ console.log("wokemaps: extension initializing");
    * @param e
    */
   function onCanvasImageDrawn(e) {
-    if (!mapContext || !lastCenter || !preRenderedLabels.length) return;
+    if (!mapCanvas.context || !lastCenter || !preRenderedLabels.length) return;
     const extent = e.detail.extent;
     const transform = e.detail.transform;
     const {dx, dy, dw, dh} = extent;
     let shouldDelay = false;
+    const tileSize = mapCanvas.tileSize;
 
     // Image draw requests are typically for tiles (square), for labels (smaller), or
     // for the whole canvas.
@@ -488,6 +370,8 @@ console.log("wokemaps: extension initializing");
 
   function renderOverlappingLabels(extent, transform) {
     const {dx, dy, dw, dh} = extent;
+
+    const tileSize = mapCanvas.tileSize;
     const isTile = dw === tileSize && dh === tileSize;
 
     const topLeft = applyContextTransform(dx, dy, transform);
@@ -500,12 +384,13 @@ console.log("wokemaps: extension initializing");
     };
 
     if (HIGHLIGHT_GRID && isTile) {
-      mapContext.save();
-      mapContext.resetTransform();
-      mapContext.strokeStyle = 'rgba(200, 255, 200, 100)';
-      mapContext.lineWidth = 3;
-      mapContext.strokeRect(topLeft.x, topLeft.y, dw, dh);
-      mapContext.restore();
+      const context = mapCanvas.context;
+      context.save();
+      context.resetTransform();
+      context.strokeStyle = 'rgba(200, 255, 200, 100)';
+      context.lineWidth = 3;
+      context.strokeRect(topLeft.x, topLeft.y, dw, dh);
+      context.restore();
     }
 
     // Filter labels by zoom level first
@@ -544,6 +429,7 @@ console.log("wokemaps: extension initializing");
   // Convert lat/lng to canvas pixel coordinates using current map state
   function latLngToCanvasPixel(lat, lng) {
     if (!lastCenter) return null;
+    const tileSize = mapCanvas.tileSize;
 
     // Get the projected pixel position for both the label and map center
     const labelPixel = googleMapsLatLngToPoint(lat, lng, lastZoom, tileSize);
@@ -556,15 +442,16 @@ console.log("wokemaps: extension initializing");
     const worldOffsetY = labelPixel.y - centerPixel.y;
 
     // Convert to canvas coordinates using the same logic as drawLabel
-    const canvasCenterX = mapCanvas.width / 2;
-    const canvasCenterY = mapCanvas.height / 2;
+    const canvasCenter = mapCanvas.getCenter();
 
-    const parentDimensions = getParentDimensions();
+    const parentDimensions = mapCanvas.getParentDimensions();
     const tileAlignmentX = -tileSize + (parentDimensions.width % (tileSize / 2));
     const tileAlignmentY = -tileSize + (parentDimensions.height % (tileSize / 2));
 
-    const x = canvasCenterX + worldOffsetX - (canvasTransform.translateX * transformMultiplier) + tileAlignmentX;
-    const y = canvasCenterY + worldOffsetY - (canvasTransform.translateY * transformMultiplier) + tileAlignmentY;
+    const x = canvasCenter.x + worldOffsetX -
+        (canvasTransform.translateX * mapCanvas.transformMultiplier) + tileAlignmentX;
+    const y = canvasCenter.y + worldOffsetY -
+        (canvasTransform.translateY * mapCanvas.transformMultiplier) + tileAlignmentY;
 
     return { x, y };
   }
@@ -599,7 +486,7 @@ console.log("wokemaps: extension initializing");
 
   // Draw label overlap directly to canvas coordinates
   function drawLabelOverlap(label, overlap, transform) {
-    if (!labelsCanvas || !mapContext) return;
+    if (!labelsCanvas || !mapCanvas.context) return;
 
     const { canvasRegion, labelRegion } = overlap;
 
@@ -617,16 +504,17 @@ console.log("wokemaps: extension initializing");
 
     // Draw the label portion
     try {
-      mapContext.save();
+      const context = mapCanvas.context;
+      context.save();
       // It is important we draw with no transform because the parameters we are passing are
       // relative to the origin of the canvas.
-      mapContext.resetTransform();
-      mapContext.drawImage(
+      context.resetTransform();
+      context.drawImage(
           labelsCanvas,
           srcX, srcY, srcW, srcH,
           destX, destY, destW, destH
       );
-      mapContext.restore();
+      context.restore();
     } catch (e) {
       console.error("Error drawing label overlap:", e);
     }
@@ -670,14 +558,14 @@ console.log("wokemaps: extension initializing");
     observer = new MutationObserver(handleMutations);
 
     // Observe the canvas for attribute changes
-    observer.observe(mapCanvas, {
+    observer.observe(mapCanvas.canvas, {
       attributes: true,
       attributeFilter: ['style', 'width', 'height']
     });
 
     // Observe the canvas parent for transform changes
-    if (canvasParent) {
-      observer.observe(canvasParent, {
+    if (mapCanvas.parent) {
+      observer.observe(mapCanvas.parent, {
         attributes: true,
         attributeFilter: ['style', 'class']
       });
@@ -698,9 +586,9 @@ console.log("wokemaps: extension initializing");
     for (const mutation of mutations) {
       // If the mutation involves style changes on canvas or parent
       if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-        if (mutation.target === mapCanvas) {
+        if (mutation.target === mapCanvas.canvas) {
           shouldUpdateCanvasTransform = true;
-        } else if (mutation.target === canvasParent) {
+        } else if (mutation.target === mapCanvas.parent) {
           shouldUpdateParentTransform = true;
         }
       }
@@ -717,9 +605,9 @@ console.log("wokemaps: extension initializing");
 
   // Update canvas transform information
   function updateCanvasTransform() {
-    if (!mapCanvas) return;
+    if (!mapCanvas.canvas) return;
 
-    const canvasStyle = window.getComputedStyle(mapCanvas);
+    const canvasStyle = window.getComputedStyle(mapCanvas.canvas);
     const canvasTransformStr = canvasStyle.transform || canvasStyle.webkitTransform;
 
     if (canvasTransformStr && canvasTransformStr !== 'none') {
@@ -731,9 +619,9 @@ console.log("wokemaps: extension initializing");
 
   // Update parent transform information
   function updateParentTransform() {
-    if (!canvasParent) return;
+    if (!mapCanvas.parent) return;
 
-    const parentStyle = window.getComputedStyle(canvasParent);
+    const parentStyle = window.getComputedStyle(mapCanvas.parent);
     const parentTransformStr = parentStyle.transform || parentStyle.webkitTransform;
 
     if (parentTransformStr && parentTransformStr !== 'none') {
@@ -879,7 +767,7 @@ console.log("wokemaps: extension initializing");
 
   // Draw all labels on the canvas (fallback method)
   function drawAllLabels() {
-    if (!mapCanvas || !mapContext || !lastCenter) return;
+    if (!mapCanvas.canvas || !mapCanvas.context || !lastCenter) return;
 
     const zoom = lastZoom;
 
@@ -901,6 +789,7 @@ console.log("wokemaps: extension initializing");
     const labelOffsetX = label.xOffset || 0;
     const labelOffsetY = label.yOffset || 0;
     const background = label.backgroundType === 'rect' ? '#ffffffb3' : '#00000000';
+    const tileSize = mapCanvas.tileSize;
 
     // Calculate the pixel position using the Mercator projection
     const labelPixel = googleMapsLatLngToPoint(lat, lng, lastZoom, tileSize);
@@ -913,14 +802,13 @@ console.log("wokemaps: extension initializing");
     const worldOffsetY = labelPixel.y - centerPixel.y;
 
     // Calculate canvas center (in canvas pixels)
-    const canvasCenterX = mapCanvas.width / 2;
-    const canvasCenterY = mapCanvas.height / 2;
+    const canvasCenter = mapCanvas.getCenter();
 
     // Apply the correct formula: SUBTRACT transform with retina multiplier
     // All calculations are in canvas pixel coordinates
 
     // Get parent dimensions for the tile alignment calculation
-    const parentDimensions = getParentDimensions();
+    const parentDimensions = mapCanvas.getParentDimensions();
 
     // Calculate the tile alignment offset based on parent size
     // X is affected by width, Y by height
@@ -928,17 +816,13 @@ console.log("wokemaps: extension initializing");
     const tileAlignmentY = -tileSize + (parentDimensions.height % (tileSize / 2));
 
     // This is the "center point" of the label.
-    const x = canvasCenterX + worldOffsetX + labelOffsetX - (canvasTransform.translateX * transformMultiplier) + tileAlignmentX;
-    const y = canvasCenterY + worldOffsetY + labelOffsetY - (canvasTransform.translateY * transformMultiplier) + tileAlignmentY;
-
-    // Check if on screen (with margin)
-    //TODO: this necessary?
-    if (x < -100 || x > mapCanvas.width + 100 || y < -100 || y > mapCanvas.height + 100) {
-      return;
-    }
+    const x = canvasCenter.x + worldOffsetX + labelOffsetX -
+        (canvasTransform.translateX * mapCanvas.transformMultiplier) + tileAlignmentX;
+    const y = canvasCenter.y + worldOffsetY + labelOffsetY -
+        (canvasTransform.translateY * mapCanvas.transformMultiplier) + tileAlignmentY;
 
     // Use the shared label drawing function
-    drawLabelAtPosition(mapContext, x, y, text, color, background, scale, -1.5);
+    drawLabelAtPosition(mapCanvas.context, x, y, text, color, background, scale, -1.5);
   }
 
   // Accurate Google Maps style projection with tile size parameter
@@ -969,24 +853,6 @@ console.log("wokemaps: extension initializing");
     }
   }
 
-  // Start the process
+  // Start the init process
   initialize();
-
-  // Periodically check if we need to reinitialize
-  setInterval(() => {
-    if (!document.body.contains(mapCanvas) || !observer) {
-      console.log("Canvas lost or observer disconnected, reinitializing");
-
-      // Clean up old observer if it exists
-      if (observer) {
-        observer.disconnect();
-        observer = null;
-      }
-
-      mapCanvas = null;
-      mapContext = null;
-      canvasParent = null;
-      initialize();
-    }
-  }, 5000);
 })();
