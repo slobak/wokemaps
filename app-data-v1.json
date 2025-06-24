@@ -64,17 +64,17 @@
             "maxZoom": 17,
             "xOffset": -100,
             "yOffset": -30,
-            "scale": 1.5
+            "scale": 1.8
         },
         {
-            "lat": 63.069176,
+            "lat": 63.069170,
             "lng": -151.00699,
             "text": "Denali",
             "minZoom": 18,
             "maxZoom": 21,
             "xOffset": -100,
-            "yOffset": 0,
-            "scale": 2
+            "yOffset": -60,
+            "scale": 2.2
         },
         {
             "lat": 27.3423073,

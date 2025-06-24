@@ -74,9 +74,9 @@ Edit `app-data-v1.json` to add new labels. Use Google Maps to find coordinates, 
 ### Key Files
 ```
 manifest.json          # Extension configuration
-content-main.js        # Main initialization
+content-for-google-maps.js        # Main initialization
 app-data-v1.json      # Label definitions
-content-in-page.js    # Page-context hooks for canvas interception
+content-in-google-maps.js    # Page-context hooks for canvas interception
 ```
 
 ## How It Works

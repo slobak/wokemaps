@@ -18,6 +18,14 @@ console.log("wokemaps: extension initializing");
     }
   }
 
+  // Initialize UUID to make unique ID available if we need it
+  const uuidManager = new UuidManager();
+  uuidManager.getUUID().then(uuid => {
+    console.log('wokemaps: UUID initialized for maps context:', uuid);
+  }).catch(e => {
+    console.error('wokemaps: Failed to initialize UUID:', e);
+  });
+
   // Load app data
   const appDataManager = new AppDataManager(optionsManager);
   const allLabels = await appDataManager.getLabels();
