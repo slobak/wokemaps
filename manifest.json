@@ -27,7 +27,9 @@
     }, {
       "matches": ["*://*.google.com/maps/*"],
       "js": [
+        "util.js",
         "options-manager.js",
+        "uuid-manager.js",
         "app-data-manager.js",
         "announcement-manager.js",
         "map-canvas.js",

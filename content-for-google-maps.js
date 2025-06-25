@@ -42,17 +42,11 @@ console.log("wokemaps: extension initializing");
   const overlayEngine = new OverlayEngine(mapCanvas, mapState, labelRenderer, options, allLabels);
 
   // Initialize immediately
-  function initialize() {
-    // Try to initialize the map canvas
-    if (!mapCanvas.tryInitialize()) {
-      console.log("No tile-based canvas found, retrying in 500ms");
-      setTimeout(initialize, 500);
-      return;
-    }
+  retryWithExponentialBackoff(
+      () => mapCanvas.tryInitialize(),
+      100,
+      30000).then(() => {
     mapState.initialize();
     overlayEngine.initialize();
-  }
-
-  // Start the init process
-  initialize();
+  });
 })();
