@@ -31,7 +31,7 @@ class OverlayEngineWebGL {
      * Handle map state changes
      */
     handleStateChange(changeType) {
-        console.log('state change', changeType);
+        //console.log('state change', changeType);
         switch (changeType) {
             case 'position':
                 // URL position changed - need full redraw
@@ -71,7 +71,7 @@ class OverlayEngineWebGL {
 
         // Skip rendering if currently zooming
         if (this.mapState.isPotentiallyZooming) {
-            console.log('wokemaps: Skipping render during zoom interaction');
+            //console.log('wokemaps: Skipping render during zoom interaction');
             return;
         }
 
@@ -95,14 +95,14 @@ class OverlayEngineWebGL {
             timestamp: Date.now()
         };
 
-        console.log(`wokemaps: Rendered ${renderedCount} labels to overlay at zoom ${zoom}`);
+        //console.log(`wokemaps: Rendered ${renderedCount} labels to overlay at zoom ${zoom}`);
     }
 
     /**
      * Render a single label to the overlay canvas
      */
     renderLabelToOverlay(label) {
-        console.log("rendering label", label);
+        //console.log("rendering label", label);
         if (!this.mapState.center) return false;
 
         // Calculate the pixel position for this label

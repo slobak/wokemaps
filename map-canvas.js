@@ -9,7 +9,6 @@ class MapCanvas {
         this.contextType = null;
         this.canvasId = null;
         this.tileSize = 256;
-        this.transformMultiplier = 1;
         this.isSupported = false;
 
         this.detectDisplayType();
@@ -123,11 +122,9 @@ class MapCanvas {
 
         if (devicePixelRatio > 1.5) {
             this.tileSize = 512;
-            this.transformMultiplier = 2;
             console.log(`wokemaps: Detected retina display (pixel ratio: ${devicePixelRatio})`);
         } else {
             this.tileSize = 256;
-            this.transformMultiplier = 1;
             console.log(`wokemaps: Detected standard display (pixel ratio: ${devicePixelRatio})`);
         }
     }

@@ -10,7 +10,6 @@ class MapCanvasWebGL {
         this.contextType = 'webgl';
         this.canvasId = canvasId;
         this.tileSize = 512; // WebGL typically uses 512px tiles
-        this.transformMultiplier = 1;  // don't scale translations
         this.resizeObserver = null;
 
         this.detectDisplayType();

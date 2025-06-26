@@ -143,7 +143,8 @@
     function findAnchorTile(tiles) {
         if (tiles.length === 0) return null;
 
-        const visibleTiles = tiles.filter(t => t.width > 0 && t.height > 0);
+        const visibleTiles = tiles.filter(
+            t => t.width > 0 && t.height > 0 && t.width <= TILE_SIZE && t.height <= TILE_SIZE);
         if (visibleTiles.length === 0) return null;
 
         const virtualTiles = calculateVirtualTilePosition(visibleTiles);
@@ -186,6 +187,10 @@
     function processFrame() {
         if (tileTracker.currentFrame.tiles.length === 0) return;
 
+        // TODO: with fractional zooms the scissor calls and resulting tiles we accumulate
+        // don't make a lot of sense so we generate bad offsets and stuff jumps around, we should
+        // figure out what's happening or at least hide the canvas during movement on fractional zoom.
+
         const anchor = findAnchorTile(tileTracker.currentFrame.tiles);
         if (!anchor) return;
 
@@ -197,7 +202,7 @@
             tileTracker.totalMovement = { x: 0, y: 0 };
             tileTracker.frameBaseline = anchor;
 
-            console.log(`wokemaps: URL BASELINE set at virtual[${anchor.x}, ${anchor.y}]`);
+            //console.log(`wokemaps: URL BASELINE set at virtual[${anchor.x}, ${anchor.y}]`);
 
             if (overlayCanvasWebGL) {
                 this.overlayCanvasWebGL.style.transform = '';
@@ -227,11 +232,11 @@
 
             // Update CSS to achieve immediate translation
             if (overlayCanvasWebGL) {
-                const transform = `translate(${movementX / 2.0}px, ${-movementY / 2.0}px)`;
-                overlayCanvasWebGL.style.transform = transform;
+                overlayCanvasWebGL.style.transform =
+                    `translate(${movementX / window.devicePixelRatio}px, ${-movementY / window.devicePixelRatio}px)`;
             }
 
-            console.log(`wokemaps: Movement [${tileTracker.totalMovement.x >= 0 ? '+' : ''}${tileTracker.totalMovement.x}, ${tileTracker.totalMovement.y >= 0 ? '+' : ''}${tileTracker.totalMovement.y}] (frame: [${frameMovement.x >= 0 ? '+' : ''}${frameMovement.x}, ${frameMovement.y >= 0 ? '+' : ''}${frameMovement.y}])`);
+            //console.log(`wokemaps: Movement [${tileTracker.totalMovement.x >= 0 ? '+' : ''}${tileTracker.totalMovement.x}, ${tileTracker.totalMovement.y >= 0 ? '+' : ''}${tileTracker.totalMovement.y}] (frame: [${frameMovement.x >= 0 ? '+' : ''}${frameMovement.x}, ${frameMovement.y >= 0 ? '+' : ''}${frameMovement.y}])`);
         }
 
         tileTracker.frameBaseline = anchor;
@@ -246,11 +251,11 @@
         if (tileTracker.frameBaseline) {
             tileTracker.urlBaseline = { ...tileTracker.frameBaseline };
             tileTracker.totalMovement = { x: 0, y: 0 };
-            console.log(`wokemaps: NEW BASELINE: lat:${newPosition.lat.toFixed(6)}, lng:${newPosition.lng.toFixed(6)}, zoom:${newPosition.zoom} - baseline set to virtual[${tileTracker.urlBaseline.x}, ${tileTracker.urlBaseline.y}]`);
+            //console.log(`wokemaps: NEW BASELINE: lat:${newPosition.lat.toFixed(6)}, lng:${newPosition.lng.toFixed(6)}, zoom:${newPosition.zoom} - baseline set to virtual[${tileTracker.urlBaseline.x}, ${tileTracker.urlBaseline.y}]`);
         } else {
             tileTracker.urlBaseline = null;
             tileTracker.totalMovement = { x: 0, y: 0 };
-            console.log(`wokemaps: NEW BASELINE: lat:${newPosition.lat.toFixed(6)}, lng:${newPosition.lng.toFixed(6)}, zoom:${newPosition.zoom} - waiting for first tiles...`);
+            //console.log(`wokemaps: NEW BASELINE: lat:${newPosition.lat.toFixed(6)}, lng:${newPosition.lng.toFixed(6)}, zoom:${newPosition.zoom} - waiting for first tiles...`);
         }
 
         // Notify isolated world
@@ -354,21 +359,20 @@
         if (event.origin !== window.location.origin) return;
 
         if (event.data.type === 'WOKEMAPS_REQUEST_CANVAS_INFO') {
-            console.log('wokemaps: Received request for canvas info from isolated script');
             if (mapCanvasInfo) {
-                console.log('wokemaps: Canvas already detected, sending info immediately');
+                console.log('wokemaps: Canvas info requested and available');
                 communicateMapCanvasInfo();
             } else {
-                console.log('wokemaps: Canvas not yet detected, will send when available');
+                console.log('wokemaps: Canvas info requested but not yet detected, will send when available');
             }
         }
 
         if (event.data.type === 'WOKEMAPS_REGISTER_WEBGL_OVERLAY_CANVAS') {
             const canvasId = event.data.canvasId;
-            console.log(`wokemaps: in-page script registering overlay canvas: ${canvasId}`);
+            console.log(`wokemaps: Registering overlay canvas for immediate transforms: ${canvasId}`);
             overlayCanvasWebGL = document.getElementById(canvasId);
             if (!overlayCanvasWebGL) {
-                console.warn(`wokemaps: no canvas found with id ${canvasId}`);
+                console.warn(`wokemaps: No overlay canvas found with id ${canvasId}`);
             }
         }
     });
@@ -488,12 +492,6 @@
     if (currentPosition) {
         resetBaselines(currentPosition);
     }
-
-    // Utility function to get current movement (for debugging)
-    window.getTileMovement = function() {
-        console.log(`Current total movement from URL baseline: [${tileTracker.totalMovement.x >= 0 ? '+' : ''}${tileTracker.totalMovement.x}, ${tileTracker.totalMovement.y >= 0 ? '+' : ''}${tileTracker.totalMovement.y}]`);
-        return { ...tileTracker.totalMovement };
-    };
 
     console.log('wokemaps: canvas detection and tile tracking initialized');
 })();

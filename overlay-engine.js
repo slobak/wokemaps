@@ -260,9 +260,9 @@ class OverlayEngine {
         const tileAlignmentY = -this.mapCanvas.tileSize + (parentDimensions.height % (this.mapCanvas.tileSize / 2));
 
         const x = canvasCenter.x + worldOffsetX -
-            (this.mapState.canvasTransform.translateX * this.mapCanvas.transformMultiplier) + tileAlignmentX;
+            (this.mapState.canvasTransform.translateX * window.devicePixelRatio) + tileAlignmentX;
         const y = canvasCenter.y + worldOffsetY -
-            (this.mapState.canvasTransform.translateY * this.mapCanvas.transformMultiplier) + tileAlignmentY;
+            (this.mapState.canvasTransform.translateY * window.devicePixelRatio) + tileAlignmentY;
 
         return { x, y };
     }

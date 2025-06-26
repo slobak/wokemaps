@@ -179,7 +179,6 @@ class MapStateWebGL {
      * Handle URL changes
      */
     handleUrlChanged() {
-        console.log("wokemaps: URL changed - updating position");
         this.updatePositionFromUrl();
 
         if (this.zoomInteractionTimeout !== null) {

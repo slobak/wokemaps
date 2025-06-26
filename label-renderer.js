@@ -232,8 +232,8 @@ class LabelRenderer {
         const tileAlignmentY = -this.mapCanvas.tileSize + (parentDimensions.height % (this.mapCanvas.tileSize / 2));
 
         // Apply canvas transform
-        const x = canvasCenter.x + worldOffsetX + labelProps.xOffset - (canvasTransform.translateX * this.mapCanvas.transformMultiplier) + tileAlignmentX;
-        const y = canvasCenter.y + worldOffsetY + labelProps.yOffset - (canvasTransform.translateY * this.mapCanvas.transformMultiplier) + tileAlignmentY;
+        const x = canvasCenter.x + worldOffsetX + labelProps.xOffset - (canvasTransform.translateX * window.devicePixelRatio) + tileAlignmentX;
+        const y = canvasCenter.y + worldOffsetY + labelProps.yOffset - (canvasTransform.translateY * window.devicePixelRatio) + tileAlignmentY;
 
         // Check if on screen (with margin)
         const canvasDimensions = this.mapCanvas.getDimensions();
