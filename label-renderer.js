@@ -68,7 +68,7 @@ class LabelRenderer {
      */
     drawLabelAtPosition(context, x, y, labelProps) {
         context.save();
-        const fontSize = 24 * labelProps.scale;
+        const fontSize = 12 * labelProps.scale;
 
         // Set font
         if (this.fontLoaded) {
@@ -231,7 +231,7 @@ class LabelRenderer {
         const tileAlignmentX = -this.mapCanvas.tileSize + (parentDimensions.width % (this.mapCanvas.tileSize / 2));
         const tileAlignmentY = -this.mapCanvas.tileSize + (parentDimensions.height % (this.mapCanvas.tileSize / 2));
 
-        // Apply canvas transform (this was missing!)
+        // Apply canvas transform
         const x = canvasCenter.x + worldOffsetX + labelProps.xOffset - (canvasTransform.translateX * this.mapCanvas.transformMultiplier) + tileAlignmentX;
         const y = canvasCenter.y + worldOffsetY + labelProps.yOffset - (canvasTransform.translateY * this.mapCanvas.transformMultiplier) + tileAlignmentY;
 
@@ -265,7 +265,7 @@ class LabelRenderer {
             const normY = 0.5 - mercN / (2 * Math.PI);
 
             // Scale by the world size at this zoom level
-            const scale = Math.pow(2, zoom);
+            const scale = Math.pow(2, zoom - 1);
             const worldSize = scale * this.mapCanvas.tileSize;
 
             // Convert to pixel coordinates

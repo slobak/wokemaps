@@ -34,19 +34,30 @@ console.log("wokemaps: extension initializing");
       (await appDataManager.getAnnouncements()) : [];
   const announcementManager = new AnnouncementManager(announcements);
 
-  const mapCanvas = new MapCanvas();
-  const mapState = new MapState(mapCanvas);
-  const labelRenderer = new LabelRenderer(mapCanvas);
+  // Initialize label renderer
+  const labelRenderer = new LabelRenderer(null); // Will be set after canvas detection
   await labelRenderer.initialize(allLabels);
 
-  const overlayEngine = new OverlayEngine(mapCanvas, mapState, labelRenderer, options, allLabels);
+  // Use factory to create appropriate components based on detected mode
+  const canvasFactory = new CanvasFactory();
 
-  // Initialize immediately
+  console.log('wokemaps: Waiting for canvas detection...');
+  const components = await canvasFactory.createComponents(labelRenderer, options, allLabels);
+
+  console.log(`wokemaps: Initialized in ${components.mode} mode`);
+
+  // Update label renderer with the detected canvas
+  labelRenderer.mapCanvas = components.mapCanvas;
+
+  // Initialize components with retry
   retryWithExponentialBackoff(
-      () => mapCanvas.tryInitialize(),
+      () => {
+        return components.mapCanvas.tryInitialize()
+      },
       100,
       30000).then(() => {
-    mapState.initialize();
-    overlayEngine.initialize();
+    console.log('wokemaps: Canvas initialized, starting map state and overlay engine');
+    components.mapState.initialize();
+    components.overlayEngine.initialize();
   });
 })();
