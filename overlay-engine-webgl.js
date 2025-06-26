@@ -40,11 +40,18 @@ class OverlayEngineWebGL {
 
             case 'movement':
                 // Tile movement detected - overlay will move via CSS transform
-                // No redraw needed, movement is handled by CSS
+                // No redraw needed, movement is handled by CSS, but we have a bug
+                // where fractional zooms mess up our offset detection because the
+                // tile clipping (which we listen to) is done differently, so
+                // hide during pan on fractional zoom.
+                if (this.mapState.zoom !== Math.round(this.mapState.zoom)) {
+                    this.mapCanvas.hideOverlay();
+                }
                 break;
 
             case 'baseline':
                 // Baseline reset - need full redraw
+                this.mapCanvas.showOverlay();
                 this.redrawAllLabels();
                 break;
 
