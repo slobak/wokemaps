@@ -72,6 +72,7 @@ class MapCanvasWebGL {
             z-index: 1000;
         `;
         this.overlayCanvas.setAttribute('data-wokemaps-overlay', 'true');
+        this.overlayCanvas.id = 'wokemaps_overlay_canvas_' + randomElementId();
 
         // Get 2D context
         this.overlayContext = this.overlayCanvas.getContext('2d', { willReadFrequently: true });
@@ -88,6 +89,12 @@ class MapCanvasWebGL {
 
         // Setup size monitoring
         this.setupSizeMonitoring();
+
+        // Register with the in-page script
+        window.postMessage({
+            type: 'WOKEMAPS_REGISTER_WEBGL_OVERLAY_CANVAS',
+            canvasId: this.overlayCanvas.id
+        }, '*');
 
         console.log('wokemaps: Overlay canvas created and positioned');
         return true;
@@ -167,22 +174,6 @@ class MapCanvasWebGL {
         if (this.overlayCanvas) {
             this.overlayCanvas.style.visibility = 'hidden';
         }
-    }
-
-    /**
-     * Apply movement transform to overlay canvas
-     */
-    applyMovementTransform(movementX, movementY) {
-        if (!this.overlayCanvas) return;
-
-        //xcxc do in-page and may reduce lag
-
-        // Apply CSS transform to move overlay with tile movement.
-        // Translation we want is negated in Y direction just because of how GL
-        // coordinates work (+ is NE) vs. 2D canvas (+ is SE).
-        // Un-scale.
-        const transform = `translate(${movementX / 2.0}px, ${-movementY / 2.0}px)`;
-        this.overlayCanvas.style.transform = transform;
     }
 
     /**

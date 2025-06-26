@@ -1,5 +1,6 @@
 (function() {
     let mapCanvasInfo = null;
+    let overlayCanvas = null;
 
     // Tile movement tracking for WebGL
     const tileTracker = {
@@ -198,6 +199,10 @@
 
             console.log(`wokemaps: URL BASELINE set at virtual[${anchor.x}, ${anchor.y}]`);
 
+            if (overlayCanvasWebGL) {
+                this.overlayCanvasWebGL.style.transform = '';
+            }
+
             // Notify isolated world of baseline reset
             window.postMessage({
                 type: 'WOKEMAPS_BASELINE_RESET'
@@ -211,12 +216,20 @@
         if (frameMovement && (frameMovement.x !== 0 || frameMovement.y !== 0)) {
             tileTracker.totalMovement.x += frameMovement.x;
             tileTracker.totalMovement.y += frameMovement.y;
+            const movementX = tileTracker.totalMovement.x;
+            const movementY = tileTracker.totalMovement.y;
 
             // Send movement to isolated world
             window.postMessage({
                 type: 'WOKEMAPS_TILE_MOVEMENT',
-                movement: { x: tileTracker.totalMovement.x, y: tileTracker.totalMovement.y }
+                movement: { x: movementX, y: movementY }
             }, '*');
+
+            // Update CSS to achieve immediate translation
+            if (overlayCanvasWebGL) {
+                const transform = `translate(${movementX / 2.0}px, ${-movementY / 2.0}px)`;
+                overlayCanvasWebGL.style.transform = transform;
+            }
 
             console.log(`wokemaps: Movement [${tileTracker.totalMovement.x >= 0 ? '+' : ''}${tileTracker.totalMovement.x}, ${tileTracker.totalMovement.y >= 0 ? '+' : ''}${tileTracker.totalMovement.y}] (frame: [${frameMovement.x >= 0 ? '+' : ''}${frameMovement.x}, ${frameMovement.y >= 0 ? '+' : ''}${frameMovement.y}])`);
         }
@@ -347,6 +360,15 @@
                 communicateMapCanvasInfo();
             } else {
                 console.log('wokemaps: Canvas not yet detected, will send when available');
+            }
+        }
+
+        if (event.data.type === 'WOKEMAPS_REGISTER_WEBGL_OVERLAY_CANVAS') {
+            const canvasId = event.data.canvasId;
+            console.log(`wokemaps: in-page script registering overlay canvas: ${canvasId}`);
+            overlayCanvasWebGL = document.getElementById(canvasId);
+            if (!overlayCanvasWebGL) {
+                console.warn(`wokemaps: no canvas found with id ${canvasId}`);
             }
         }
     });

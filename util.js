@@ -1,3 +1,8 @@
+
+function randomElementId() {
+    return Math.random().toString(36).substr(2, 9);
+}
+
 /**
  * Runs a function with exponential backoff retry logic
  * @param {Function} fn - The function to execute (should return true for success, false for retry)

@@ -68,8 +68,6 @@ class MapStateWebGL {
         const deltaY = Math.abs(this.movementOffset.y - oldMovement.y);
 
         if (deltaX > 1 || deltaY > 1) {
-            // Apply movement transform to overlay canvas immediately
-            this.mapCanvas.applyMovementTransform(this.movementOffset.x, this.movementOffset.y);
             this.notifyListeners('movement');
         }
     }
@@ -140,9 +138,8 @@ class MapStateWebGL {
         if (zoomMatch && zoomMatch.length >= 2) {
             const zoom = parseFloat(zoomMatch[1]);
             if (!isNaN(zoom)) {
-                const newZoom = Math.round(zoom);
-                if (this.zoom !== newZoom) {
-                    this.zoom = newZoom;
+                if (this.zoom !== zoom) {
+                    this.zoom = zoom;
                     hasChanges = true;
                 }
             }
