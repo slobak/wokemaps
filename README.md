@@ -40,8 +40,8 @@ The extension uses a hybrid configuration system:
   "lat": 25.334537,        // Latitude coordinate for label placement
   "lng": -90.054921,       // Longitude coordinate for label placement
   "text": "Gulf of Mexico", // Display text (supports \n for multiple lines)
-  "minZoom": 4,            // Minimum zoom level to show label
-  "maxZoom": 16,           // Maximum zoom level to show label
+  "zoomStart": 4,            // Minimum zoom level to show label
+  "zoomLimit": 16,           // Maximum zoom level to show label
   "scale": 1.4,            // Font size multiplier (default: 1.0)
   "xOffset": 0,            // Horizontal pixel offset from lat/lng position
   "yOffset": 0             // Vertical pixel offset from lat/lng position

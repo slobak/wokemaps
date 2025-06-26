@@ -99,7 +99,7 @@ class OverlayEngine {
 
         // Render each label that's in zoom range
         this.allLabels.forEach(label => {
-            if (zoom >= label.minZoom && zoom <= label.maxZoom) {
+            if (zoom >= label.zoomStart && zoom < label.zoomLimit) {
                 if (this.renderLabelToOverlay(label)) {
                     renderedCount++;
                 }

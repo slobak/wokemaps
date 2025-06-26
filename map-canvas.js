@@ -112,7 +112,7 @@ class MapCanvas {
         }
 
         // Insert overlay canvas as sibling
-        this.parent.appendChild(this.overlayCanvas);
+        this.parent.insertBefore(this.overlayCanvas, this.mapCanvas);
 
         // Initial size sync
         this.syncOverlaySize();

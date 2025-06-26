@@ -7,34 +7,34 @@
             "lat": 25.334537,
             "lng": -90.054921,
             "text": "Gulf of Mexico",
-            "minZoom": 4,
-            "maxZoom": 16,
+            "zoomStart": 4,
+            "zoomLimit": 17,
             "scale": 1.4
         },
         {
             "lat": 57.7763711,
             "lng": -101.6777294,
             "text": "Sovereign Country of",
-            "minZoom": 4,
-            "maxZoom": 21,
+            "zoomStart": 4,
+            "zoomLimit": 22,
             "scale": 1.4,
-            "yOffset": -45
+            "yOffset": -30
         },
         {
             "lat": 60.000000,
             "lng": -112.488277,
             "text": "Sovereign Country of",
-            "minZoom": 3,
-            "maxZoom": 3,
+            "zoomStart": 3,
+            "zoomLimit": 4,
             "scale": 0.9,
-            "yOffset": -30
+            "yOffset": -15
         },
         {
             "lat": 65.878131,
             "lng": -46.168587,
             "text": "(Not For Sale)",
-            "minZoom": 3,
-            "maxZoom": 3,
+            "zoomStart": 3,
+            "zoomLimit": 4,
             "yOffset": 30,
             "scale": 1
         },
@@ -42,8 +42,8 @@
             "lat": 65.878131,
             "lng": -46.168587,
             "text": "(Not For Sale)",
-            "minZoom": 4,
-            "maxZoom": 7,
+            "zoomStart": 4,
+            "zoomLimit": 8,
             "yOffset": 40,
             "scale": 1.2
         },
@@ -51,8 +51,8 @@
             "lat": 26.6770731,
             "lng": -80.0370038,
             "text": "(classified doc showroom)",
-            "minZoom": 13,
-            "maxZoom": 21,
+            "zoomStart": 13,
+            "zoomLimit": 22,
             "xOffset": -120,
             "yOffset": 10
         },
@@ -60,8 +60,8 @@
             "lat": 63.06920,
             "lng": -151.0070,
             "text": "Denali",
-            "minZoom": 9,
-            "maxZoom": 17,
+            "zoomStart": 9,
+            "zoomLimit": 18,
             "xOffset": -100,
             "yOffset": -30,
             "scale": 1.8
@@ -70,8 +70,8 @@
             "lat": 63.069170,
             "lng": -151.00699,
             "text": "Denali",
-            "minZoom": 18,
-            "maxZoom": 21,
+            "zoomStart": 18,
+            "zoomLimit": 22,
             "xOffset": -100,
             "yOffset": -60,
             "scale": 2.2
@@ -80,8 +80,8 @@
             "lat": 27.3423073,
             "lng": -82.4510727,
             "text": "Crypto Boiler Room",
-            "minZoom": 13,
-            "maxZoom": 21
+            "zoomStart": 13,
+            "zoomLimit": 22
         }
     ]
 }
