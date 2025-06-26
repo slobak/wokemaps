@@ -4,7 +4,11 @@
     "enableRemoteConfig": false,
     "enableRemoteConfigCache": true,
     "highlightGrid": false,
-    "logLevel": 0,
+    "logLevels": {
+      "init": 3,
+      "render": 3,
+      "state": 3
+    },
     "showDebugUi": false
   }
 }

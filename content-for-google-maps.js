@@ -11,6 +11,9 @@ console.log("wokemaps: extension initializing");
   const options = await optionsManager.getOptions();
   const debugOptions = options.debug || {};
 
+  // Initialize logging
+  await initializeLoggerWithOptions();
+
   // Enhanced logging function
   function log(level, ...args) {
     if (level <= (debugOptions.logLevel || 0)) {

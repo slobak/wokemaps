@@ -204,8 +204,8 @@
 
             //console.log(`wokemaps: URL BASELINE set at virtual[${anchor.x}, ${anchor.y}]`);
 
-            if (overlayCanvasWebGL) {
-                this.overlayCanvasWebGL.style.transform = '';
+            if (overlayCanvas) {
+                this.overlayCanvas.style.transform = '';
             }
 
             // Notify isolated world of baseline reset
@@ -231,8 +231,8 @@
             }, '*');
 
             // Update CSS to achieve immediate translation
-            if (overlayCanvasWebGL) {
-                overlayCanvasWebGL.style.transform =
+            if (overlayCanvas) {
+                overlayCanvas.style.transform =
                     `translate(${movementX / window.devicePixelRatio}px, ${-movementY / window.devicePixelRatio}px)`;
             }
 
@@ -371,8 +371,8 @@
         if (event.data.type === 'WOKEMAPS_REGISTER_WEBGL_OVERLAY_CANVAS') {
             const canvasId = event.data.canvasId;
             console.log(`wokemaps: Registering overlay canvas for immediate transforms: ${canvasId}`);
-            overlayCanvasWebGL = document.getElementById(canvasId);
-            if (!overlayCanvasWebGL) {
+            overlayCanvas = document.getElementById(canvasId);
+            if (!overlayCanvas) {
                 console.warn(`wokemaps: No overlay canvas found with id ${canvasId}`);
             }
         }
@@ -479,6 +479,8 @@
         window.dispatchEvent(new CustomEvent('wokemaps_potentialZoomInteraction', {}));
     }
 
+    initializeInPageLogger();
+    
     window.addEventListener('mouseup', handleMouseUp, { capture: true, passive: true });
     window.addEventListener('wheel', handlePotentialZoomInteraction, { capture: true, passive: true });
     window.addEventListener('keydown', handleKeyDown, { capture: true, passive: true });

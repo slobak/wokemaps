@@ -22,11 +22,15 @@
     {
       "matches": ["*://*.google.com/maps/*"],
       "world": "MAIN",
-      "js": ["content-in-google-maps.js"],
+      "js": [
+        "logger.js",
+        "content-in-google-maps.js"
+      ],
       "run_at": "document_start"
     }, {
       "matches": ["*://*.google.com/maps/*"],
       "js": [
+        "logger.js",
         "util.js",
         "options-manager.js",
         "uuid-manager.js",
