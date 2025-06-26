@@ -33,12 +33,10 @@
         "app-data-manager.js",
         "announcement-manager.js",
         "map-canvas.js",
-        "map-canvas-webgl.js",
-        "map-state.js",
+        "map-state-2d.js",
         "map-state-webgl.js",
         "label-renderer.js",
         "overlay-engine.js",
-        "overlay-engine-webgl.js",
         "canvas-factory.js",
         "content-for-google-maps.js"
       ],

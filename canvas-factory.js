@@ -70,54 +70,24 @@ class CanvasFactory {
      */
     async createMapCanvas() {
         const mode = await this.detectMode();
-
-        if (mode === 'webgl') {
-            return new MapCanvasWebGL(this.canvasId);
-        } else {
-            return new MapCanvas(this.canvasId);
-        }
+        return new MapCanvas(this.canvasId, mode);
     }
 
     /**
-     * Create the appropriate MapState instance
+     * Create the appropriate MapState2D instance
      * @param {MapCanvas|MapCanvasWebGL} mapCanvas
-     * @returns {MapState|MapStateWebGL}
+     * @returns {MapState2D|MapStateWebGL}
      */
     createMapState(mapCanvas) {
-        console.log(`wokemaps: Creating MapState for mode: ${this.detectedMode}`);
+        console.log(`wokemaps: Creating MapState2D for mode: ${this.detectedMode}`);
 
         if (this.detectedMode === 'webgl') {
             console.log('wokemaps: Instantiating MapStateWebGL');
             return new MapStateWebGL(mapCanvas);
         } else {
-            console.log('wokemaps: Instantiating MapState (2D)');
-            return new MapState(mapCanvas);
+            console.log('wokemaps: Instantiating MapState2D');
+            return new MapState2D(mapCanvas);
         }
-    }
-
-    /**
-     * Create the appropriate OverlayEngine instance
-     * @param {MapCanvas|MapCanvasWebGL} mapCanvas
-     * @param {MapState|MapStateWebGL} mapState
-     * @param {LabelRenderer} labelRenderer
-     * @param {Object} options
-     * @param {Array} allLabels
-     * @returns {OverlayEngine|OverlayEngineWebGL}
-     */
-    createOverlayEngine(mapCanvas, mapState, labelRenderer, options, allLabels) {
-        if (this.detectedMode === 'webgl') {
-            return new OverlayEngineWebGL(mapCanvas, mapState, labelRenderer, options, allLabels);
-        } else {
-            return new OverlayEngine(mapCanvas, mapState, labelRenderer, options, allLabels);
-        }
-    }
-
-    /**
-     * Get the detected mode (null if not yet detected)
-     * @returns {string|null}
-     */
-    getDetectedMode() {
-        return this.detectedMode;
     }
 
     /**
@@ -130,7 +100,7 @@ class CanvasFactory {
     async createComponents(labelRenderer, options, allLabels) {
         const mapCanvas = await this.createMapCanvas();
         const mapState = this.createMapState(mapCanvas);
-        const overlayEngine = this.createOverlayEngine(mapCanvas, mapState, labelRenderer, options, allLabels);
+        const overlayEngine = new OverlayEngine(mapCanvas, mapState, labelRenderer, allLabels);
 
         return {
             mapCanvas,

@@ -1,119 +1,231 @@
-// Map Canvas Manager - Updated with Context Type Detection
-// Handles finding and managing the Google Maps rendering canvas
+// Map Canvas Manager - WebGL Implementation
+// Handles finding the WebGL canvas and creating/managing an overlay 2D canvas
 
 class MapCanvas {
-    constructor() {
-        this.canvas = null;
-        this.context = null;
+    constructor(canvasId, canvasType) {
+        this.mapCanvas = null;
+        this.overlayCanvas = null;
+        this.overlayContext = null;
         this.parent = null;
-        this.contextType = null;
-        this.canvasId = null;
-        this.tileSize = 256;
-        this.isSupported = false;
+        this.canvasType = canvasType;
+        this.canvasId = canvasId;
+        this.tileSize = 512; // WebGL typically uses 512px tiles
+        this.resizeObserver = null;
+        this.changeListeners = new Set();
 
         this.detectDisplayType();
-        this.setupCanvasDetection();
-    }
-
-    /**
-     * Setup canvas detection by listening for messages from page script
-     */
-    setupCanvasDetection() {
-        window.addEventListener('message', (event) => {
-            if (event.origin !== window.location.origin) return;
-
-            if (event.data.type === 'WOKEMAPS_MAP_CANVAS_DETECTED') {
-                this.handleCanvasDetected(event.data);
-            }
-        });
-    }
-
-    /**
-     * Handle canvas detection message from page script
-     */
-    handleCanvasDetected(data) {
-        console.log('wokemaps: Canvas detected:', data);
-
-        this.canvasId = data.canvasId;
-        this.contextType = data.contextType;
-        this.isSupported = data.supported;
-
-        if (!this.isSupported) {
-            if (data.contextType === 'webgl' || data.contextType === 'webgl2') {
-                console.error('wokemaps: WebGL mode detected but not yet supported. Labels will not be displayed.');
-                console.error('wokemaps: The extension currently only supports 2D canvas rendering mode.');
-            } else {
-                console.error('wokemaps: Unsupported canvas context type:', data.contextType);
-            }
-            return;
-        }
-
-        // Try to initialize with the detected canvas
-        this.tryInitializeWithDetectedCanvas();
     }
 
     /**
      * Try to initialize using the canvas detected by the page script
      */
     tryInitializeWithDetectedCanvas() {
-        if (!this.canvasId || !this.isSupported) {
+        if (!this.canvasId) {
             return false;
         }
 
         // Find the canvas by our ID attribute
         const canvas = document.querySelector(`[data-wokemaps-canvas-id="${this.canvasId}"]`);
         if (!canvas) {
-            console.warn('wokemaps: Could not find detected canvas in DOM');
+            console.warn('wokemaps: Could not find detected WebGL canvas in DOM');
             return false;
         }
 
         // Verify it's still the map canvas
         const mapCanvasAttr = canvas.getAttribute('data-wokemaps-map-canvas');
-        if (mapCanvasAttr !== this.contextType) {
+        if (mapCanvasAttr !== this.canvasType) {
             console.warn('wokemaps: Canvas context type mismatch');
             return false;
         }
 
-        this.canvas = canvas;
-        this.context = this.canvas.getContext('2d', { willReadFrequently: true });
-        this.parent = this.canvas.parentElement;
+        this.mapCanvas = canvas;
+        this.parent = this.mapCanvas.parentElement;
 
-        if (!this.context) {
-            console.error('wokemaps: Could not get 2D context from detected canvas');
+        // Create overlay canvas
+        if (!this.createOverlayCanvas()) {
+            console.error('wokemaps: Failed to create overlay canvas');
             return false;
         }
 
-        console.log(`wokemaps: Successfully initialized with detected ${this.contextType} canvas: ${this.canvas.width}x${this.canvas.height}`);
+        console.log(`wokemaps: WebGL mode initialized: ${this.mapCanvas.width}x${this.mapCanvas.height}`);
         return true;
     }
 
     /**
-     * Attempts to find and initialize the Google Maps canvas.
-     * @returns {boolean} True if canvas was found and initialized successfully, false otherwise
+     * Add a listener for canvas changes
+     * @param {Function} callback - Called when state changes
      */
-    tryInitialize() {
-        // First try to use detected canvas if available
-        if (this.tryInitializeWithDetectedCanvas()) {
-            return true;
-        }
+    addChangeListener(callback) {
+        this.changeListeners.add(callback);
+    }
 
-        // If no supported canvas detected yet, fall back to old method
-        if (!this.isSupported) {
-            console.log('wokemaps: No supported canvas detected yet, trying fallback method...');
-            const mapRenderingCanvas = this.findMapRenderingCanvasFallback();
-            if (mapRenderingCanvas) {
-                this.canvas = mapRenderingCanvas;
-                this.context = this.canvas.getContext('2d', { willReadFrequently: true });
-                this.parent = this.canvas.parentElement;
-                this.contextType = '2d';
-                this.isSupported = true;
+    /**
+     * Remove a change listener
+     * @param {Function} callback - Callback to remove
+     */
+    removeChangeListener(callback) {
+        this.changeListeners.delete(callback);
+    }
 
-                console.log(`wokemaps: Fallback initialization successful: ${this.canvas.width}x${this.canvas.height}`);
-                return true;
+    /**
+     * Notify all listeners of state changes
+     * @param {string} changeType - Type of change that occurred
+     */
+    notifyListeners(changeType) {
+        for (const listener of this.changeListeners) {
+            try {
+                listener(changeType, this);
+            } catch (e) {
+                console.error('Error in map state change listener:', e);
             }
         }
+    }
 
-        return false;
+    /**
+     * Create the overlay 2D canvas that will contain our labels
+     */
+    createOverlayCanvas() {
+        if (!this.mapCanvas || !this.parent) {
+            console.error('wokemaps: Cannot create overlay canvas - no WebGL canvas or parent');
+            return false;
+        }
+
+        // Create the overlay canvas
+        this.overlayCanvas = document.createElement('canvas');
+        this.overlayCanvas.style.cssText = `
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+        `;
+        this.overlayCanvas.setAttribute('data-wokemaps-overlay', 'true');
+        this.overlayCanvas.id = 'wokemaps_overlay_canvas_' + randomElementId();
+
+        // Get 2D context
+        this.overlayContext = this.overlayCanvas.getContext('2d', { willReadFrequently: true });
+        if (!this.overlayContext) {
+            console.error('wokemaps: Failed to get 2D context for overlay canvas');
+            return false;
+        }
+
+        // Insert overlay canvas as sibling
+        this.parent.appendChild(this.overlayCanvas);
+
+        // Initial size sync
+        this.syncOverlaySize();
+
+        // Setup size monitoring
+        this.setupSizeMonitoring();
+
+        // Register with the in-page script
+        window.postMessage({
+            type: 'WOKEMAPS_REGISTER_WEBGL_OVERLAY_CANVAS',
+            canvasId: this.overlayCanvas.id
+        }, '*');
+
+        console.log('wokemaps: Overlay canvas created and positioned');
+        return true;
+    }
+
+    /**
+     * Sync overlay canvas size with WebGL canvas
+     */
+    syncOverlaySize() {
+        if (!this.mapCanvas || !this.overlayCanvas) return;
+
+        //xcxc 2d canvas style changes happen all the time / on tile loads - maybe compare to known
+        // values and don't resize unless needed?
+
+        const canvasRect = this.mapCanvas.getBoundingClientRect();
+        const canvasComputedStyle = window.getComputedStyle(this.mapCanvas);
+
+        // Set canvas dimensions to match display size
+        this.overlayCanvas.width = Math.round(canvasRect.width * window.devicePixelRatio);
+        this.overlayCanvas.height = Math.round(canvasRect.height * window.devicePixelRatio);
+
+        // Set CSS size to match WebGL canvas
+        this.overlayCanvas.style.width = canvasComputedStyle.width;
+        this.overlayCanvas.style.height = canvasComputedStyle.height;
+
+        // Scale context for device pixel ratio
+        const scale = window.devicePixelRatio;
+        this.overlayContext.scale(scale, scale);
+
+        //xcxc trigger need for redraw
+
+        console.log(`wokemaps: Overlay canvas resized to ${this.overlayCanvas.width}x${this.overlayCanvas.height} (display: ${canvasRect.width}x${canvasRect.height})`);
+        this.notifyListeners('canvasResize');
+    }
+
+    /**
+     * Setup monitoring for size changes
+     */
+    setupSizeMonitoring() {
+        if (!this.mapCanvas) return;
+
+        // Use ResizeObserver to monitor WebGL canvas size changes
+        this.resizeObserver = new ResizeObserver(() => {
+            this.syncOverlaySize();
+        });
+
+        this.resizeObserver.observe(this.mapCanvas);
+
+        // Also monitor style attribute changes
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                if (mutation.type === 'attributes' &&
+                    (mutation.attributeName === 'style' ||
+                        mutation.attributeName === 'width' ||
+                        mutation.attributeName === 'height')) {
+                    this.syncOverlaySize();
+                    break;
+                }
+            }
+        });
+
+        observer.observe(this.mapCanvas, {
+            attributes: true,
+            attributeFilter: ['style', 'width', 'height']
+        });
+
+        console.log('wokemaps: Size monitoring setup for overlay canvas');
+    }
+
+    /**
+     * Show the overlay canvas
+     */
+    showOverlay() {
+        if (this.overlayCanvas) {
+            this.overlayCanvas.style.visibility = 'visible';
+        }
+    }
+
+    /**
+     * Hide the overlay canvas (during zoom/pan interactions)
+     */
+    hideOverlay() {
+        if (this.overlayCanvas) {
+            this.overlayCanvas.style.visibility = 'hidden';
+        }
+    }
+
+    /**
+     * Clear any movement transforms
+     */
+    clearMovementTransform() {
+        if (this.overlayCanvas) {
+            this.overlayCanvas.style.transform = '';
+        }
+    }
+
+    /**
+     * Attempts to find and initialize the WebGL canvas
+     */
+    tryInitialize() {
+        return this.tryInitializeWithDetectedCanvas();
     }
 
     // Detect display type (retina vs standard) and set parameters
@@ -125,81 +237,21 @@ class MapCanvas {
             console.log(`wokemaps: Detected retina display (pixel ratio: ${devicePixelRatio})`);
         } else {
             this.tileSize = 256;
+            // TODO: does webgl still use 512px tiles in this case?
             console.log(`wokemaps: Detected standard display (pixel ratio: ${devicePixelRatio})`);
         }
-    }
-
-    // Fallback method - find the map rendering canvas using old approach
-    findMapRenderingCanvasFallback() {
-        const canvases = document.querySelectorAll('canvas');
-        let mapRenderingCanvas = null;
-        let maxArea = 0;
-
-        console.log(`wokemaps: Fallback search found ${canvases.length} canvas elements`);
-
-        for (let canvas of canvases) {
-            const width = canvas.width;
-            const height = canvas.height;
-            const area = width * height;
-
-            // Only accept 2D canvases where both dimensions are multiples of 256 (tile-based rendering)
-            if (width > 0 && height > 0 &&
-                width % 256 === 0 && height % 256 === 0 &&
-                area > maxArea && area > 100000) { // Minimum size check
-                try {
-                    const ctx = canvas.getContext('2d');
-                    if (ctx) {
-                        mapRenderingCanvas = canvas;
-                        maxArea = area;
-                        console.log(`wokemaps: Fallback selected tile-based canvas: ${width}x${height}`);
-                    }
-                } catch (e) {
-                    console.log("wokemaps: Error accessing canvas:", e);
-                }
-            }
-        }
-        return mapRenderingCanvas;
     }
 
     // Get parent div dimensions properly
     getParentDimensions() {
         if (!this.parent) {
-            console.error("wokemaps: No canvas parent found");
+            console.error("wokemaps: No Maps canvas parent found");
             return { width: 0, height: 0 };
         }
 
-        // Method 1: Try getBoundingClientRect first
         const rect = this.parent.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0) {
             return { width: Math.round(rect.width), height: Math.round(rect.height) };
-        }
-
-        // Method 2: Try offsetWidth/Height
-        if (this.parent.offsetWidth > 0 && this.parent.offsetHeight > 0) {
-            return { width: this.parent.offsetWidth, height: this.parent.offsetHeight };
-        }
-
-        // Method 3: Try clientWidth/Height
-        if (this.parent.clientWidth > 0 && this.parent.clientHeight > 0) {
-            return { width: this.parent.clientWidth, height: this.parent.clientHeight };
-        }
-
-        // Method 4: Get computed style
-        const computedStyle = window.getComputedStyle(this.parent);
-        const width = parseInt(computedStyle.width, 10);
-        const height = parseInt(computedStyle.height, 10);
-
-        if (!isNaN(width) && !isNaN(height) && width > 0 && height > 0) {
-            return { width, height };
-        }
-
-        // If all else fails, check the grandparent
-        const grandParent = this.parent.parentElement;
-        if (grandParent) {
-            const grandRect = grandParent.getBoundingClientRect();
-            if (grandRect.width > 0 && grandRect.height > 0) {
-                return { width: Math.round(grandRect.width), height: Math.round(grandRect.height) };
-            }
         }
 
         console.error("wokemaps: Could not determine parent dimensions");
@@ -208,34 +260,49 @@ class MapCanvas {
 
     // Check if the canvas is still valid and supported
     isValid() {
-        return this.canvas &&
-            document.body.contains(this.canvas) &&
-            this.isSupported &&
-            this.contextType === '2d';
+        return this.mapCanvas &&
+            document.body.contains(this.mapCanvas) &&
+            this.overlayCanvas &&
+            document.body.contains(this.overlayCanvas);
     }
 
-    // Get canvas dimensions
+    // Get overlay canvas dimensions
     getDimensions() {
-        if (!this.canvas) return { width: 0, height: 0 };
-        return { width: this.canvas.width, height: this.canvas.height };
+        if (!this.overlayCanvas) return { width: 0, height: 0 };
+        return { width: this.overlayCanvas.width, height: this.overlayCanvas.height };
     }
 
-    // Get canvas center point
+    // Get overlay canvas center point
     getCenter() {
-        const dimensions = this.getDimensions();
+        if (!this.overlayCanvas) return { x: 0, y: 0 };
+
+        const rect = this.overlayCanvas.getBoundingClientRect();
         return {
-            x: dimensions.width / 2,
-            y: dimensions.height / 2
+            x: rect.width / 2,
+            y: rect.height / 2
         };
     }
 
-    // Get context type info
-    getContextInfo() {
-        return {
-            type: this.contextType,
-            supported: this.isSupported,
-            canvasId: this.canvasId
-        };
+    // Get the overlay context (this is what other components will draw to)
+    get context() {
+        return this.overlayContext;
+    }
+
+    // Get the actual canvas element (overlay for drawing)
+    get canvas() {
+        return this.overlayCanvas;
+    }
+
+    // Cleanup
+    cleanup() {
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
+
+        if (this.overlayCanvas && this.overlayCanvas.parentNode) {
+            this.overlayCanvas.parentNode.removeChild(this.overlayCanvas);
+        }
     }
 }
 

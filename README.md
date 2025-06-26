@@ -65,7 +65,7 @@ Labels appear automatically when viewing Google Maps. They:
 - **AppDataManager**: Loads and caches label configuration
 - **LabelRenderer**: Pre-renders labels to offscreen canvas
 - **MapCanvas**: Manages Google Maps canvas detection and access
-- **MapState**: Tracks map position, zoom, and transform state
+- **MapState2D**: Tracks map position, zoom, and transform state
 - **OverlayEngine**: Coordinates tile detection and label overlay rendering
 
 ### Adding Labels

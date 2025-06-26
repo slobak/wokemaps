@@ -244,6 +244,7 @@
         tileTracker.currentFrame.anchor = null;
     }
 
+    // TODO: don't detect baseline from here, maybe do it on the other side, post a message?
     function resetBaselines(newPosition) {
         tileTracker.mapPosition = newPosition;
 

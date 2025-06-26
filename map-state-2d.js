@@ -1,7 +1,7 @@
 // Map State Manager
 // Tracks map position, zoom, transforms, and interaction state
 
-class MapState {
+class MapState2D {
     constructor(mapCanvas) {
         this.mapCanvas = mapCanvas;
 
@@ -185,6 +185,8 @@ class MapState {
 
     // Update position information from URL
     updatePositionFromUrl() {
+        //xcxc we should be re-rendering as a result of this, but aren't maybe?
+        console.log('updatepos')
         // Only proceed if parent transform is zero or near zero
         if (!this.parentIsZero) {
             return;
@@ -220,6 +222,7 @@ class MapState {
                 }
             }
         }
+        console.log('updatepos haschanges', hasChanges);
 
         if (hasChanges) {
             this.notifyListeners('position');
@@ -302,14 +305,14 @@ class MapState {
             });
         }
 
-        console.log("MapState MutationObserver set up");
+        console.log("MapState2D MutationObserver set up");
     }
 
     // Set up event listeners for map interactions
     setupEventListeners() {
         window.addEventListener('wokemaps_urlChanged', () => this.handleUrlChanged());
         window.addEventListener('wokemaps_potentialZoomInteraction', () => this.handlePotentialZoomInteraction());
-        console.log('MapState event listeners initialized');
+        console.log('MapState2D event listeners initialized');
     }
 
     // Clean up observers and listeners
@@ -335,5 +338,5 @@ class MapState {
 
 // Export for use in other files
 if (typeof window !== 'undefined') {
-    window.MapState = MapState;
+    window.MapState2D = MapState2D;
 }

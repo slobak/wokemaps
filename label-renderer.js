@@ -4,9 +4,6 @@
 class LabelRenderer {
     constructor(mapCanvas) {
         this.mapCanvas = mapCanvas;
-        this.labelsCanvas = null;
-        this.labelsContext = null;
-        this.preRenderedLabels = [];
         this.fontLoaded = false;
     }
 
@@ -18,9 +15,6 @@ class LabelRenderer {
     async initialize(labels = []) {
         // Load custom font first
         await this.loadCustomFont();
-
-        // Then initialize the canvas with labels
-        this.initializeLabelsCanvas(labels);
     }
 
     /**
@@ -117,135 +111,6 @@ class LabelRenderer {
     }
 
     /**
-     * Initialize the offscreen labels canvas and pre-render all labels
-     * @param {Array} labels - Array of label configurations
-     */
-    initializeLabelsCanvas(labels = []) {
-        // Create a large offscreen canvas for pre-rendered labels
-        this.labelsCanvas = document.createElement('canvas');
-        this.labelsCanvas.width = 512;
-        this.labelsCanvas.height = Math.max(2048, labels.length * 100);
-        this.labelsContext = this.labelsCanvas.getContext('2d');
-
-        // Clear previous labels
-        this.preRenderedLabels = [];
-        this.labelsContext.clearRect(0, 0, this.labelsCanvas.width, this.labelsCanvas.height);
-
-        let currentY = 50;
-        const spacing = 10;
-
-        // Pre-render each label
-        labels.forEach((label, index) => {
-            const renderedLabel = this.preRenderLabel(label, currentY, index);
-            if (renderedLabel) {
-                this.preRenderedLabels.push({
-                    ...label,
-                    ...renderedLabel,
-                    index
-                });
-                currentY += renderedLabel.height + spacing;
-            }
-        });
-
-        console.log(`Pre-rendered ${this.preRenderedLabels.length} labels`);
-    }
-
-    /**
-     * Pre-render a single label to the offscreen canvas
-     * @param {Object} label - Label configuration
-     * @param {number} startY - Y position to start rendering
-     * @param {number} index - Label index for debugging
-     * @returns {Object|null} Rendered label info or null if failed
-     */
-    preRenderLabel(label, startY, index) {
-        const labelProps = this.getLabelProperties(label);
-        const centerX = this.labelsCanvas.width / 2;
-        const centerY = startY + 100; // Estimate center, will be adjusted
-
-        // Draw the label and get its dimensions
-        const dimensions = this.drawLabelAtPosition(
-            this.labelsContext,
-            centerX,
-            centerY,
-            labelProps
-        );
-
-        // Check if we have enough space
-        if (startY + dimensions.height > this.labelsCanvas.height) {
-            console.warn(`Not enough space for label: ${label.text}`);
-            return null;
-        }
-
-        // Adjust the actual center Y position
-        const actualCenterY = startY + dimensions.height / 2;
-
-        // Clear and redraw at the correct position
-        this.labelsContext.clearRect(
-            centerX - dimensions.width / 2 - 10,
-            centerY - dimensions.height / 2 - 10,
-            dimensions.width + 20,
-            dimensions.height + 20
-        );
-
-        this.drawLabelAtPosition(
-            this.labelsContext,
-            centerX,
-            actualCenterY,
-            labelProps
-        );
-
-        return {
-            canvasX: centerX - dimensions.width / 2,
-            canvasY: actualCenterY - dimensions.height / 2,
-            width: dimensions.width,
-            height: dimensions.height
-        };
-    }
-
-    /**
-     * Draw a label directly to the map canvas (fallback method)
-     * @param {Object} label - Label configuration
-     * @param {Object} mapState - Current map state {center, zoom}
-     * @param {Object} canvasTransform - Current canvas transform {translateX, translateY, scale}
-     */
-    drawLabelToCanvas(label, mapState, canvasTransform) {
-        if (!this.mapCanvas.context || !mapState.center) return;
-
-        const labelProps = this.getLabelProperties(label);
-
-        // Calculate the pixel position using the Mercator projection
-        const labelPixel = this.googleMapsLatLngToPoint(label.lat, label.lng, mapState.zoom);
-        const centerPixel = this.googleMapsLatLngToPoint(mapState.center.lat, mapState.center.lng, mapState.zoom);
-
-        if (!labelPixel || !centerPixel) return;
-
-        // Calculate base offset from center (world coordinates)
-        const worldOffsetX = labelPixel.x - centerPixel.x;
-        const worldOffsetY = labelPixel.y - centerPixel.y;
-
-        // Calculate canvas center and position
-        const canvasCenter = this.mapCanvas.getCenter();
-        const parentDimensions = this.mapCanvas.getParentDimensions();
-
-        // Calculate the tile alignment offset based on parent size
-        const tileAlignmentX = -this.mapCanvas.tileSize + (parentDimensions.width % (this.mapCanvas.tileSize / 2));
-        const tileAlignmentY = -this.mapCanvas.tileSize + (parentDimensions.height % (this.mapCanvas.tileSize / 2));
-
-        // Apply canvas transform
-        const x = canvasCenter.x + worldOffsetX + labelProps.xOffset - (canvasTransform.translateX * window.devicePixelRatio) + tileAlignmentX;
-        const y = canvasCenter.y + worldOffsetY + labelProps.yOffset - (canvasTransform.translateY * window.devicePixelRatio) + tileAlignmentY;
-
-        // Check if on screen (with margin)
-        const canvasDimensions = this.mapCanvas.getDimensions();
-        if (x < -100 || x > canvasDimensions.width + 100 || y < -100 || y > canvasDimensions.height + 100) {
-            return;
-        }
-
-        // Draw the label
-        this.drawLabelAtPosition(this.mapCanvas.context, x, y, labelProps);
-    }
-
-    /**
      * Accurate Google Maps style projection with tile size parameter
      * @param {number} lat - Latitude
      * @param {number} lng - Longitude
@@ -277,22 +142,6 @@ class LabelRenderer {
             console.error("Error in googleMapsLatLngToPoint:", e);
             return null;
         }
-    }
-
-    /**
-     * Get the pre-rendered labels array
-     * @returns {Array} Array of pre-rendered label objects
-     */
-    getPreRenderedLabels() {
-        return this.preRenderedLabels;
-    }
-
-    /**
-     * Check if labels canvas is initialized
-     * @returns {boolean} True if initialized
-     */
-    isInitialized() {
-        return this.labelsCanvas !== null;
     }
 }
 

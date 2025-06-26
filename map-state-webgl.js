@@ -197,7 +197,7 @@ class MapStateWebGL {
     setupEventListeners() {
         window.addEventListener('wokemaps_urlChanged', () => this.handleUrlChanged());
         window.addEventListener('wokemaps_potentialZoomInteraction', () => this.handlePotentialZoomInteraction());
-        console.log('wokemaps: WebGL MapState event listeners initialized');
+        console.log('wokemaps: WebGL MapState2D event listeners initialized');
     }
 
     /**
