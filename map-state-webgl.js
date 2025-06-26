@@ -76,7 +76,7 @@ class MapStateWebGL {
      * Handle baseline reset from page script
      */
     handleBaselineReset() {
-        console.log('wokemaps: Baseline reset detected - clearing movement offset');
+        //console.log('wokemaps: Baseline reset detected - clearing movement offset');
         this.movementOffset = { x: 0, y: 0 };
         this.hasValidMovement = false;
         this.mapCanvas.clearMovementTransform();
