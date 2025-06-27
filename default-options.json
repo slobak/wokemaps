@@ -7,7 +7,8 @@
     "logLevels": {
       "init": 3,
       "render": 3,
-      "state": 3
+      "state": 3,
+      "ui": 3
     },
     "showDebugUi": false
   }

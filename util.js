@@ -50,7 +50,7 @@ async function retryWithExponentialBackoffAsync(asyncFn, initialWaitMs, maxWaitM
             }
         } catch (error) {
             // Treat exceptions as failure and continue retrying
-            console.warn('Function threw error, retrying:', error);
+            log.warn('init', 'Function threw error, retrying:', error);
         }
 
         if (onRetry) {

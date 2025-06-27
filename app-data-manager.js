@@ -30,7 +30,7 @@ class AppDataManager {
         const now = Date.now();
 
         if (cachedData && cacheExpiry && now < parseInt(cacheExpiry)) {
-            console.log("wokemaps: Using cached app data");
+            log.info('init', "Using cached app data");
             return JSON.parse(cachedData);
         }
 
@@ -40,7 +40,7 @@ class AppDataManager {
     // Load app data from remote source
     async loadRemoteAppData() {
         try {
-            console.log("wokemaps: Fetching fresh app data from remote source...");
+            log.info('init', "Fetching fresh app data from remote source");
             const response = await fetch(`https://wokemaps-public.s3.us-east-2.amazonaws.com/app-data-v${this.DATA_VERSION}.json`, {
                 method: 'GET',
                 cache: 'no-cache',
@@ -63,10 +63,10 @@ class AppDataManager {
                 [this.DATA_CACHE_EXPIRY_KEY]: (Date.now() + this.DATA_CACHE_DURATION).toString()
             });
 
-            console.log(`wokemaps: Successfully loaded and cached ${remoteData.labels.length} labels from remote app data`);
+            log.info('init', `Successfully loaded and cached ${remoteData.labels.length} labels from remote app data`);
             return remoteData;
         } catch (error) {
-            console.warn(`wokemaps: Failed to load remote app data: ${error.message}`);
+            log.warn('init', `Failed to load remote app data: ${error.message}`);
             return null;
         }
     }
@@ -84,11 +84,11 @@ class AppDataManager {
             const localData = await localResponse.json();
             this.validateAppData(localData);
 
-            console.log(`wokemaps: Successfully loaded ${localData.labels.length} labels from local app data`);
+            log.info('init', `Successfully loaded ${localData.labels.length} labels from local app data`);
             return localData;
         } catch (localError) {
-            console.error(`wokemaps: Failed to load local app data: ${localError.message}`);
-            console.error("wokemaps: No app data available, extension may not work properly");
+            log.error('init', `Failed to load local app data: ${localError.message}`);
+            log.error('init', "No app data available, extension may not work properly");
             return { labels: [], announcements: [] }; // Return empty structure if everything fails
         }
     }
@@ -99,7 +99,7 @@ class AppDataManager {
             return this.appData;
         }
 
-        console.log("wokemaps: Loading app data...");
+        log.info('init', "Loading app data");
 
         const useRemote = await this.optionsManager.getOption('debug.enableRemoteConfig', true);
         const useCache = await this.optionsManager.getOption('debug.enableRemoteConfigCache', true);

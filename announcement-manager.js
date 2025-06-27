@@ -8,7 +8,7 @@ class AnnouncementManager {
         this.announcements = announcements;
         this.currentAnnouncement = null;
 
-        console.log(`wokemaps: Loaded ${this.announcements.length} announcements`);
+        log.info('init', `Loaded ${this.announcements.length} announcements`);
 
         // Start the announcement process
         this.showActiveAnnouncement();
@@ -22,7 +22,7 @@ class AnnouncementManager {
                 return result[this.DISMISSAL_STORAGE_KEY].latestDismissal || null;
             }
         } catch (e) {
-            console.warn("wokemaps: Failed to load dismissal state:", e);
+            log.warn('init', "Failed to load dismissal state:", e);
         }
         return null;
     }
@@ -35,7 +35,7 @@ class AnnouncementManager {
             };
             await chrome.storage.sync.set({ [this.DISMISSAL_STORAGE_KEY]: state });
         } catch (e) {
-            console.warn("wokemaps: Failed to save dismissal state:", e);
+            log.warn('init', "Failed to save dismissal state:", e);
         }
     }
 
@@ -66,7 +66,7 @@ class AnnouncementManager {
                 // This announcement should be shown
                 return announcement;
             } catch (e) {
-                console.warn("wokemaps: Invalid announcement data:", announcement, e);
+                log.warn('init', "Invalid announcement data:", announcement, e);
                 continue;
             }
         }
@@ -112,7 +112,7 @@ class AnnouncementManager {
             this.announcementBar.classList.add('show');
         }, 100);
 
-        console.log("wokemaps: Showing announcement:", announcement.contents);
+        log.info('ui', "Showing announcement:", announcement.contents);
     }
 
     // Dismiss the current announcement
@@ -136,7 +136,7 @@ class AnnouncementManager {
             this.currentAnnouncement = null;
         }, 300);
 
-        console.log("wokemaps: Announcement dismissed");
+        log.info('ui', "Announcement dismissed");
     }
 
     // Show active announcement if one exists
@@ -152,7 +152,7 @@ class AnnouncementManager {
                 setTimeout(() => this.showAnnouncementBar(activeAnnouncement), 1000);
             }
         } else {
-            console.log("wokemaps: No active announcements to show");
+            log.info('init', "No active announcements to show");
         }
     }
 }

@@ -23,21 +23,20 @@ class CanvasFactory {
                 if (event.origin !== window.location.origin) return;
 
                 if (event.data.type === 'WOKEMAPS_MAP_CANVAS_DETECTED') {
-                    clearTimeout(timeout);
                     window.removeEventListener('message', handleMessage);
 
                     const contextType = event.data.contextType;
                     this.canvasId = event.data.canvasId;
                     if (contextType === 'webgl' || contextType === 'webgl2') {
                         this.detectedMode = 'webgl';
-                        console.log(`wokemaps: Detected WebGL mode (${contextType})`);
+                        log.info('init', `Detected WebGL mode (${contextType})`);
                         resolve('webgl');
                     } else if (contextType === '2d') {
                         this.detectedMode = '2d';
-                        console.log('wokemaps: Detected 2D mode');
+                        log.info('init', `Detected 2D mode`);
                         resolve('2d');
                     } else {
-                        console.warn(`wokemaps: Unknown context type: ${contextType}, defaulting to 2D`);
+                        log.warn('init', `Unknown context type: ${contextType}, defaulting to 2D`);
                         this.detectedMode = '2d';
                         resolve('2d');
                     }
@@ -47,18 +46,10 @@ class CanvasFactory {
             window.addEventListener('message', handleMessage);
 
             // Request canvas info from page script (in case it's already detected)
-            console.log('wokemaps: Requesting canvas detection from page script');
+            log.info('init', 'Requesting canvas detection from page script');
             window.postMessage({
                 type: 'WOKEMAPS_REQUEST_CANVAS_INFO'
             }, '*');
-
-            // Set timeout after setting up listener and making request
-            const timeout = setTimeout(() => {
-                window.removeEventListener('message', handleMessage);
-                console.log('wokemaps: Mode detection timeout, defaulting to 2D');
-                this.detectedMode = '2d';
-                resolve('2d');
-            }, 5000);
         });
 
         return this.modeDetectionPromise;
@@ -79,13 +70,13 @@ class CanvasFactory {
      * @returns {MapState2D|MapStateWebGL}
      */
     createMapState(mapCanvas) {
-        console.log(`wokemaps: Creating MapState2D for mode: ${this.detectedMode}`);
+        log.info('init', `Creating MapState2D for mode: ${this.detectedMode}`);
 
         if (this.detectedMode === 'webgl') {
-            console.log('wokemaps: Instantiating MapStateWebGL');
+            log.info('init', 'Instantiating MapStateWebGL');
             return new MapStateWebGL(mapCanvas);
         } else {
-            console.log('wokemaps: Instantiating MapState2D');
+            log.info('init', 'Instantiating MapState2D');
             return new MapState2D(mapCanvas);
         }
     }

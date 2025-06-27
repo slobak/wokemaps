@@ -27,9 +27,9 @@ class LabelRenderer {
             const font = await fontFace.load();
             document.fonts.add(font);
             this.fontLoaded = true;
-            console.log("Custom font loaded successfully");
+            log.info('init', "Custom font loaded successfully");
         } catch (err) {
-            console.warn("Failed to load custom font, will use fallback:", err);
+            log.warn('init', "Failed to load custom font, will use fallback:", err);
             this.fontLoaded = false;
             // Don't throw - fallback font will be used
         }
@@ -139,7 +139,7 @@ class LabelRenderer {
 
             return { x: pixelX, y: pixelY };
         } catch (e) {
-            console.error("Error in googleMapsLatLngToPoint:", e);
+            log.error('render', "Error in googleMapsLatLngToPoint:", e);
             return null;
         }
     }

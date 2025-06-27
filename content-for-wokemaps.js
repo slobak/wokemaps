@@ -7,7 +7,7 @@
         const uuid = await uuidManager.getUUID();
         const version = chrome.runtime.getManifest().version;
 
-        console.log('wokemaps: Extension UUID ready in isolated world:', uuid);
+        console.log('Extension UUID ready in isolated world:', uuid);
 
         // Send UUID to main world via postMessage
         window.postMessage({
@@ -18,7 +18,7 @@
         }, '*');
 
     } catch (e) {
-        console.error('wokemaps: Failed to get UUID in isolated world:', e);
+        console.error('Failed to get UUID in isolated world:', e);
 
         // Send error to main world
         window.postMessage({

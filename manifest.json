@@ -23,7 +23,7 @@
       "matches": ["*://*.google.com/maps/*"],
       "world": "MAIN",
       "js": [
-        "logger.js",
+        "logger-in-page.js",
         "content-in-google-maps.js"
       ],
       "run_at": "document_start"

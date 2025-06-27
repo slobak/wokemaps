@@ -27,16 +27,16 @@ class UuidManager {
 
             if (result[this.UUID_STORAGE_KEY]) {
                 this.uuid = result[this.UUID_STORAGE_KEY];
-                console.log('wokemaps: Using existing UUID');
+                log.detail('init', 'Using existing UUID');
             } else {
                 this.uuid = this.generateUUID();
                 await chrome.storage.sync.set({ [this.UUID_STORAGE_KEY]: this.uuid });
-                console.log('wokemaps: Generated new UUID');
+                log.detail('init', 'Generated new UUID');
             }
 
             return this.uuid;
         } catch (e) {
-            console.error('wokemaps: Failed to get/set UUID:', e);
+            log.error('init', 'Failed to get/set UUID:', e);
             // Fallback to session-only UUID
             this.uuid = this.generateUUID();
             return this.uuid;
@@ -48,10 +48,10 @@ class UuidManager {
         try {
             this.uuid = this.generateUUID();
             await chrome.storage.sync.set({ [this.UUID_STORAGE_KEY]: this.uuid });
-            console.log('wokemaps: UUID reset');
+            log.detail('init', 'UUID reset');
             return this.uuid;
         } catch (e) {
-            console.error('wokemaps: Failed to reset UUID:', e);
+            log.error('init', 'Failed to reset UUID:', e);
             return null;
         }
     }

@@ -17,10 +17,9 @@ const log = {
         state: WOKEMAPS_LOG_LEVELS.INFO
     },
 
-    // Default to the name of this extension. The extra space is reserved for a
-    // marker indicating the log is from the in-page script, in the in-page
-    // instance of the logger.
-    prefix: 'wokemaps ',
+    // Default to the name of this extension. The marker indicates the log
+    // is from the in-page script.
+    prefix: 'wokemaps*',
 
     // Core logging method
     _log(level, channel, ...args) {
@@ -101,19 +100,17 @@ const log = {
         return { ...this.config };
     },
 
-    initialize(logLevels) {
-        // For content scripts that have access to OptionsManager
-        if (typeof logLevels !== 'undefined') {
-            this.setLevels(logLevels);
+    initializeInPage() {
+        // Listen for log configuration from content script (for in-page scripts)
+        window.addEventListener('message', (event) => {
+            if (event.origin !== window.location.origin) return;
 
-            // Send config to in-page script
-            window.postMessage({
-                type: 'WOKEMAPS_LOG_CONFIG',
-                config: log.getConfig()
-            }, '*');
-        } else {
-            this.info('init', 'No log options provided, using defaults');
-        }
+            if (event.data.type === 'WOKEMAPS_LOG_CONFIG') {
+                log.setLevels(event.data.config);
+                log.info('init', 'In-page logger configuration updated');
+            }
+        });
+        log.info('init', 'In-page logger ready, waiting for configuration');
     }
 };
 

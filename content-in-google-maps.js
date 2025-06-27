@@ -1,3 +1,4 @@
+// Everything in an anonymous closure to minimize pollution of the global namespace.
 (function() {
     let mapCanvasInfo = null;
     let overlayCanvas = null;
@@ -37,7 +38,7 @@
     function checkForMapCanvas(canvas, contextType, context) {
         const width = canvas.width;
         const height = canvas.height;
-        console.log('considering canvas', contextType, width, height);
+        log.detail('init', 'considering canvas', contextType, width, height);
 
         // WebGL canvas is typically 300x150 initially
         if ((contextType === 'webgl' || contextType === 'webgl2') && width === 300 && height === 150) {
@@ -79,7 +80,7 @@
         // Mark the canvas
         canvas.setAttribute('data-wokemaps-map-canvas', contextType);
 
-        console.log(`wokemaps: Selected map canvas: ${canvas.width}x${canvas.height}, ${contextType}`);
+        log.info('init', `Selected map canvas: ${canvas.width}x${canvas.height}, ${contextType}`);
 
         // Communicate to isolated script
         communicateMapCanvasInfo();
@@ -202,10 +203,10 @@
             tileTracker.totalMovement = { x: 0, y: 0 };
             tileTracker.frameBaseline = anchor;
 
-            //console.log(`wokemaps: URL BASELINE set at virtual[${anchor.x}, ${anchor.y}]`);
+            log.detail('state', `URL BASELINE set at virtual[${anchor.x}, ${anchor.y}]`);
 
             if (overlayCanvas) {
-                this.overlayCanvas.style.transform = '';
+                overlayCanvas.style.transform = '';
             }
 
             // Notify isolated world of baseline reset
@@ -236,7 +237,7 @@
                     `translate(${movementX / window.devicePixelRatio}px, ${-movementY / window.devicePixelRatio}px)`;
             }
 
-            //console.log(`wokemaps: Movement [${tileTracker.totalMovement.x >= 0 ? '+' : ''}${tileTracker.totalMovement.x}, ${tileTracker.totalMovement.y >= 0 ? '+' : ''}${tileTracker.totalMovement.y}] (frame: [${frameMovement.x >= 0 ? '+' : ''}${frameMovement.x}, ${frameMovement.y >= 0 ? '+' : ''}${frameMovement.y}])`);
+            log.detail('state', `Movement [${tileTracker.totalMovement.x >= 0 ? '+' : ''}${tileTracker.totalMovement.x}, ${tileTracker.totalMovement.y >= 0 ? '+' : ''}${tileTracker.totalMovement.y}] (frame: [${frameMovement.x >= 0 ? '+' : ''}${frameMovement.x}, ${frameMovement.y >= 0 ? '+' : ''}${frameMovement.y}])`);
         }
 
         tileTracker.frameBaseline = anchor;
@@ -252,11 +253,9 @@
         if (tileTracker.frameBaseline) {
             tileTracker.urlBaseline = { ...tileTracker.frameBaseline };
             tileTracker.totalMovement = { x: 0, y: 0 };
-            //console.log(`wokemaps: NEW BASELINE: lat:${newPosition.lat.toFixed(6)}, lng:${newPosition.lng.toFixed(6)}, zoom:${newPosition.zoom} - baseline set to virtual[${tileTracker.urlBaseline.x}, ${tileTracker.urlBaseline.y}]`);
         } else {
             tileTracker.urlBaseline = null;
             tileTracker.totalMovement = { x: 0, y: 0 };
-            //console.log(`wokemaps: NEW BASELINE: lat:${newPosition.lat.toFixed(6)}, lng:${newPosition.lng.toFixed(6)}, zoom:${newPosition.zoom} - waiting for first tiles...`);
         }
 
         // Notify isolated world
@@ -297,8 +296,6 @@
             gl: gl
         };
 
-        console.log(`wokemaps: Intercepting WebGL for canvas: ${canvasInfo.id}`);
-
         const contextData = { firstScissorInFrame: true, canvasInfo: canvasInfo, gl: gl };
         allWebGLContexts.add(contextData);
 
@@ -308,7 +305,7 @@
             // Identify main canvas on first scissor activity
             if (contextData.firstScissorInFrame && !tileTracker.canvasId) {
                 tileTracker.canvasId = canvasInfo.id;
-                console.log(`wokemaps: Set ${canvasInfo.id} as main maps canvas for tile tracking`);
+                log.info('init', `Set ${canvasInfo.id} as main maps canvas for tile tracking`);
             }
 
             // Collect scissor calls for the main canvas
@@ -361,19 +358,19 @@
 
         if (event.data.type === 'WOKEMAPS_REQUEST_CANVAS_INFO') {
             if (mapCanvasInfo) {
-                console.log('wokemaps: Canvas info requested and available');
+                log.info('init', 'Canvas info requested and available');
                 communicateMapCanvasInfo();
             } else {
-                console.log('wokemaps: Canvas info requested but not yet detected, will send when available');
+                log.info('init', 'Canvas info requested but not yet detected, will send when available');
             }
         }
 
         if (event.data.type === 'WOKEMAPS_REGISTER_WEBGL_OVERLAY_CANVAS') {
             const canvasId = event.data.canvasId;
-            console.log(`wokemaps: Registering overlay canvas for immediate transforms: ${canvasId}`);
+            log.info('init', `Registering overlay canvas for immediate transforms: ${canvasId}`);
             overlayCanvas = document.getElementById(canvasId);
             if (!overlayCanvas) {
-                console.warn(`wokemaps: No overlay canvas found with id ${canvasId}`);
+                log.warn('init', `No overlay canvas found with id ${canvasId}`);
             }
         }
     });
@@ -479,8 +476,9 @@
         window.dispatchEvent(new CustomEvent('wokemaps_potentialZoomInteraction', {}));
     }
 
-    initializeInPageLogger();
-    
+    log.setPrefix('wokemaps*');
+    log.initializeInPage();
+
     window.addEventListener('mouseup', handleMouseUp, { capture: true, passive: true });
     window.addEventListener('wheel', handlePotentialZoomInteraction, { capture: true, passive: true });
     window.addEventListener('keydown', handleKeyDown, { capture: true, passive: true });
@@ -496,5 +494,5 @@
         resetBaselines(currentPosition);
     }
 
-    console.log('wokemaps: canvas detection and tile tracking initialized');
+    log.info('init', 'Canvas detection and tile tracking initialized');
 })();

@@ -2,7 +2,7 @@
 // Tries to respond to Google Maps rendering at certain locations, and overwrites with
 // labels more desirable to the user.
 
-console.log("wokemaps: extension initializing");
+log.info('init', "Extension initializing");
 
 (async function() {
 
@@ -12,21 +12,14 @@ console.log("wokemaps: extension initializing");
   const debugOptions = options.debug || {};
 
   // Initialize logging
-  await initializeLoggerWithOptions();
-
-  // Enhanced logging function
-  function log(level, ...args) {
-    if (level <= (debugOptions.logLevel || 0)) {
-      console.log("wokemaps:", ...args);
-    }
-  }
+  await log.initialize(debugOptions.logLevels);
 
   // Initialize UUID to make unique ID available if we need it
   const uuidManager = new UuidManager();
   uuidManager.getUUID().then(uuid => {
-    console.log('wokemaps: UUID initialized for maps context:', uuid);
+    log.info('init', 'UUID initialized for maps context:', uuid);
   }).catch(e => {
-    console.error('wokemaps: Failed to initialize UUID:', e);
+    log.error('init', 'Failed to initialize UUID:', e);
   });
 
   // Load app data
@@ -44,10 +37,10 @@ console.log("wokemaps: extension initializing");
   // Use factory to create appropriate components based on detected mode
   const canvasFactory = new CanvasFactory();
 
-  console.log('wokemaps: Waiting for canvas detection...');
+  log.info('init', 'Waiting for canvas detection...');
   const components = await canvasFactory.createComponents(labelRenderer, options, allLabels);
 
-  console.log(`wokemaps: Initialized in ${components.mode} mode`);
+  log.info('init', `Initialized in ${components.mode} mode`);
 
   // Update label renderer with the detected canvas
   labelRenderer.mapCanvas = components.mapCanvas;
@@ -59,7 +52,7 @@ console.log("wokemaps: extension initializing");
       },
       100,
       30000).then(() => {
-    console.log('wokemaps: Canvas initialized, starting map state and overlay engine');
+    log.info('init', 'Canvas initialized, starting map state and overlay engine');
     components.mapState.initialize();
     components.overlayEngine.initialize();
   });

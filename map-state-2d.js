@@ -67,7 +67,7 @@ class MapState2D {
             try {
                 listener(changeType, this);
             } catch (e) {
-                console.error('Error in map state change listener:', e);
+                log.error('state', 'Error in map state change listener:', e);
             }
         }
     }
@@ -107,7 +107,7 @@ class MapState2D {
 
             // If parent just went to zero, update position from URL
             if (!wasZero && this.parentIsZero) {
-                console.log("Parent transform went to zero - updating center from URL");
+                log.detail('state', "Parent transform went to zero - updating center from URL");
                 this.updatePositionFromUrl();
             }
 
@@ -122,7 +122,7 @@ class MapState2D {
             newTransform.scale !== oldTransform.scale;
 
         if (different) {
-            //console.log(`${name} transform changes`, newTransform);
+            //log.detail('state', `${name} transform changes`, newTransform);
         }
 
         return different;
@@ -178,15 +178,13 @@ class MapState2D {
 
             return { translateX, translateY, scale };
         } catch (e) {
-            console.error("Error parsing transform:", e);
+            log.error('state', "Error parsing transform:", e);
             return { translateX: 0, translateY: 0, scale: 1 };
         }
     }
 
     // Update position information from URL
     updatePositionFromUrl() {
-        //xcxc we should be re-rendering as a result of this, but aren't maybe?
-        console.log('updatepos')
         // Only proceed if parent transform is zero or near zero
         if (!this.parentIsZero) {
             return;
@@ -222,7 +220,6 @@ class MapState2D {
                 }
             }
         }
-        console.log('updatepos haschanges', hasChanges);
 
         if (hasChanges) {
             this.notifyListeners('position');
@@ -232,14 +229,14 @@ class MapState2D {
     // Handle map interactions that might result in a zoom
     handlePotentialZoomInteraction() {
         this.isPotentiallyZooming = true;
-        console.log("potential zoom interaction, suspending redraw");
+        log.detail('state', "potential zoom interaction, suspending redraw");
 
         if (this.zoomInteractionTimeout) {
             clearTimeout(this.zoomInteractionTimeout);
         }
 
         this.zoomInteractionTimeout = setTimeout(() => {
-            console.log("zoom interaction timeout, redrawing");
+            log.detail('state', "zoom interaction timeout, redrawing");
             this.zoomInteractionTimeout = null;
             this.isPotentiallyZooming = false;
             this.updatePositionFromUrl();
@@ -252,10 +249,10 @@ class MapState2D {
     // Handle URL changes
     handleUrlChanged() {
         if (this.parentIsZero) {
-            console.log("onMapsUrlChanged: Parent transform is zero - updating center from URL");
+            log.detail('state', "onMapsUrlChanged: Parent transform is zero - updating center from URL");
             this.updatePositionFromUrl();
             if (this.zoomInteractionTimeout !== null) {
-                console.log("zoom resolved, redrawing");
+                log.detail('state', "zoom resolved, redrawing");
                 clearTimeout(this.zoomInteractionTimeout);
                 this.zoomInteractionTimeout = null;
                 this.isPotentiallyZooming = false;
@@ -305,14 +302,14 @@ class MapState2D {
             });
         }
 
-        console.log("MapState2D MutationObserver set up");
+        log.detail('init', "MapState2D MutationObserver set up");
     }
 
     // Set up event listeners for map interactions
     setupEventListeners() {
         window.addEventListener('wokemaps_urlChanged', () => this.handleUrlChanged());
         window.addEventListener('wokemaps_potentialZoomInteraction', () => this.handlePotentialZoomInteraction());
-        console.log('MapState2D event listeners initialized');
+        log.detail('init', 'MapState2D event listeners initialized');
     }
 
     // Clean up observers and listeners

@@ -76,7 +76,7 @@ class MapStateWebGL {
      * Handle baseline reset from page script
      */
     handleBaselineReset() {
-        //console.log('wokemaps: Baseline reset detected - clearing movement offset');
+        log.detail('state','Baseline reset detected - clearing movement offset');
         this.movementOffset = { x: 0, y: 0 };
         this.hasValidMovement = false;
         this.mapCanvas.clearMovementTransform();
@@ -106,7 +106,7 @@ class MapStateWebGL {
             try {
                 listener(changeType, this);
             } catch (e) {
-                console.error('Error in map state change listener:', e);
+                log.error('state','Error in map state change listener:', e);
             }
         }
     }
@@ -146,7 +146,7 @@ class MapStateWebGL {
         }
 
         if (hasChanges) {
-            console.log(`wokemaps: Position updated from URL: lat:${this.center?.lat}, lng:${this.center?.lng}, zoom:${this.zoom}`);
+            log.detail('state', `Position updated from URL: lat:${this.center?.lat}, lng:${this.center?.lng}, zoom:${this.zoom}`);
             this.notifyListeners('position');
         }
     }
@@ -156,7 +156,7 @@ class MapStateWebGL {
      */
     handlePotentialZoomInteraction() {
         this.isPotentiallyZooming = true;
-        console.log("wokemaps: Potential zoom interaction - hiding overlay");
+        log.detail('state',"Potential zoom interaction - hiding overlay");
 
         // Hide overlay during potential zoom
         this.mapCanvas.hideOverlay();
@@ -166,7 +166,7 @@ class MapStateWebGL {
         }
 
         this.zoomInteractionTimeout = setTimeout(() => {
-            console.log("wokemaps: Zoom interaction resolved - showing overlay");
+            log.detail('state',"Zoom interaction resolved - showing overlay");
             this.zoomInteractionTimeout = null;
             this.isPotentiallyZooming = false;
             this.updatePositionFromUrl();
@@ -182,7 +182,7 @@ class MapStateWebGL {
         this.updatePositionFromUrl();
 
         if (this.zoomInteractionTimeout !== null) {
-            console.log("wokemaps: URL change during zoom interaction - resolving");
+            log.detail('state',"URL change during zoom interaction - resolving");
             clearTimeout(this.zoomInteractionTimeout);
             this.zoomInteractionTimeout = null;
             this.isPotentiallyZooming = false;
@@ -197,7 +197,7 @@ class MapStateWebGL {
     setupEventListeners() {
         window.addEventListener('wokemaps_urlChanged', () => this.handleUrlChanged());
         window.addEventListener('wokemaps_potentialZoomInteraction', () => this.handlePotentialZoomInteraction());
-        console.log('wokemaps: WebGL MapState2D event listeners initialized');
+        log.detail('init','WebGL MapState2D event listeners initialized');
     }
 
     /**

@@ -20,7 +20,7 @@ class OverlayEngine {
         // Initial render
         this.redrawAllLabels();
 
-        console.log('OverlayEngine: initialized');
+        log.detail('init','OverlayEngine: initialized');
     }
 
     /**
@@ -38,7 +38,6 @@ class OverlayEngine {
      * Handle map state changes
      */
     handleStateChange(changeType) {
-        //console.log('state change', changeType);
         // TODO: simplify these state changes, probably just need position and movement
         switch (changeType) {
             case 'position':
@@ -78,7 +77,7 @@ class OverlayEngine {
      */
     redrawAllLabels() {
         if (!this.mapCanvas.canvas || !this.mapCanvas.context || !this.mapState.center) {
-            console.log('wokemaps: Cannot render - missing canvas or center');
+            log.warn('render','Cannot render - missing canvas or center');
             return;
         }
 
@@ -88,11 +87,11 @@ class OverlayEngine {
 
         // Skip rendering if currently zooming
         if (this.mapState.isPotentiallyZooming) {
-            console.log('wokemaps: Skipping render during zoom interaction');
+            log.info('render','Cannot render - missing canvas or center');
             return;
         }
 
-        console.log('wokemaps: Redrawing labels');
+        log.info('render','Redrawing labels');
 
         const zoom = this.mapState.zoom;
         let renderedCount = 0;
@@ -105,23 +104,13 @@ class OverlayEngine {
                 }
             }
         });
-
-        // Update last rendered state
-        this.lastRenderedState = {
-            center: { ...this.mapState.center },
-            zoom: this.mapState.zoom,
-            movementOffset: { ...this.mapState.movementOffset },
-            timestamp: Date.now()
-        };
-
-        //console.log(`wokemaps: Rendered ${renderedCount} labels to overlay at zoom ${zoom}`);
     }
 
     /**
      * Render a single label to the overlay canvas
      */
     renderLabelToOverlay(label) {
-        //console.log("rendering label", label);
+        log.detail('render', "rendering label", label);
         if (!this.mapState.center) return false;
 
         // Calculate the pixel position for this label

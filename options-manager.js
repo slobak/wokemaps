@@ -35,10 +35,10 @@ class OptionsManager {
 
         if (storedOptions) {
             this.currentOptions = storedOptions;
-            console.log("wokemaps: Loaded options from storage", this.currentOptions);
+            log.info('init', "Loaded options from storage", this.currentOptions);
         } else {
             this.currentOptions = { ...defaultOptions };
-            console.log("wokemaps: Using default options", this.currentOptions);
+            log.info('init', "Using default options", this.currentOptions);
         }
 
         return this.currentOptions;
@@ -77,7 +77,7 @@ class OptionsManager {
             this.currentOptions = { ...options };
             return true;
         } catch (e) {
-            console.error('Failed to save options:', e);
+            log.error('init', 'Failed to save options:', e);
             return false;
         }
     }
@@ -90,7 +90,7 @@ class OptionsManager {
             this.currentOptions = { ...defaultOptions };
             return true;
         } catch (e) {
-            console.error('Failed to reset options:', e);
+            log.error('init', 'Failed to reset options:', e);
             return false;
         }
     }
