@@ -40,11 +40,17 @@ document.addEventListener('DOMContentLoaded', async function() {
         const options = await optionsManager.getOptions();
         const debugOptions = options.debug || {};
 
-        // Set current values
+        // Set current values for existing debug options
         document.getElementById('enableRemoteConfig').checked = debugOptions.enableRemoteConfig !== false;
         document.getElementById('enableRemoteConfigCache').checked = debugOptions.enableRemoteConfigCache !== false;
         document.getElementById('highlightGrid').checked = debugOptions.highlightGrid || false;
-        document.getElementById('logLevel').value = debugOptions.logLevel || 0;
+
+        // Set current values for log levels
+        const logLevels = debugOptions.logLevels || {};
+        document.getElementById('initLogLevel').value = logLevels.init || 3;
+        document.getElementById('renderLogLevel').value = logLevels.render || 3;
+        document.getElementById('stateLogLevel').value = logLevels.state || 3;
+        document.getElementById('uiLogLevel').value = logLevels.ui || 3;
 
         // Add event listeners for automatic saving
         document.getElementById('enableRemoteConfig').addEventListener('change', async function() {
@@ -83,19 +89,28 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         });
 
-        document.getElementById('logLevel').addEventListener('change', async function() {
-            const value = parseInt(this.value);
-            if (value >= 0 && value <= 3) {
-                const currentOptions = await optionsManager.getOptions();
-                currentOptions.debug = currentOptions.debug || {};
-                currentOptions.debug.logLevel = value;
+        // Add event listeners for log level changes
+        const logLevelIds = ['initLogLevel', 'renderLogLevel', 'stateLogLevel', 'uiLogLevel'];
+        const logLevelChannels = ['init', 'render', 'state', 'ui'];
 
-                if (await optionsManager.saveOptions(currentOptions)) {
-                    showStatus('Log level saved');
-                } else {
-                    showStatus('Failed to save setting', 'error');
+        logLevelIds.forEach((id, index) => {
+            document.getElementById(id).addEventListener('change', async function() {
+                const value = parseInt(this.value);
+                const channel = logLevelChannels[index];
+
+                if (value >= 0 && value <= 4) {
+                    const currentOptions = await optionsManager.getOptions();
+                    currentOptions.debug = currentOptions.debug || {};
+                    currentOptions.debug.logLevels = currentOptions.debug.logLevels || {};
+                    currentOptions.debug.logLevels[channel] = value;
+
+                    if (await optionsManager.saveOptions(currentOptions)) {
+                        showStatus(`${channel} log level saved`);
+                    } else {
+                        showStatus('Failed to save setting', 'error');
+                    }
                 }
-            }
+            });
         });
 
         // Add event listeners for action buttons
@@ -110,7 +125,13 @@ document.addEventListener('DOMContentLoaded', async function() {
                 document.getElementById('enableRemoteConfig').checked = debugOptions.enableRemoteConfig !== false;
                 document.getElementById('enableRemoteConfigCache').checked = debugOptions.enableRemoteConfigCache !== false;
                 document.getElementById('highlightGrid').checked = debugOptions.highlightGrid || false;
-                document.getElementById('logLevel').value = debugOptions.logLevel || 0;
+
+                // Reset log levels to defaults
+                const logLevels = debugOptions.logLevels || {};
+                document.getElementById('initLogLevel').value = logLevels.init || 3;
+                document.getElementById('renderLogLevel').value = logLevels.render || 3;
+                document.getElementById('stateLogLevel').value = logLevels.state || 3;
+                document.getElementById('uiLogLevel').value = logLevels.ui || 3;
 
                 showStatus('Options reset to defaults');
             } catch (e) {

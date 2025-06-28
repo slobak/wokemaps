@@ -248,9 +248,54 @@
             </label>
         </div>
 
-        <div class="option-row">
-            <span class="option-label">Log Level</span>
-            <input type="number" id="logLevel" class="number-input" min="0" max="3" step="1">
+        <div class="option-group">
+            <h3>Log Levels</h3>
+
+            <div class="log-levels-grid">
+                <div class="log-level-row">
+                    <span class="log-level-label">Init</span>
+                    <select id="initLogLevel" class="log-level-select">
+                        <option value="0">None</option>
+                        <option value="1">Error</option>
+                        <option value="2">Warn</option>
+                        <option value="3">Info</option>
+                        <option value="4">Detail</option>
+                    </select>
+                </div>
+
+                <div class="log-level-row">
+                    <span class="log-level-label">Render</span>
+                    <select id="renderLogLevel" class="log-level-select">
+                        <option value="0">None</option>
+                        <option value="1">Error</option>
+                        <option value="2">Warn</option>
+                        <option value="3">Info</option>
+                        <option value="4">Detail</option>
+                    </select>
+                </div>
+
+                <div class="log-level-row">
+                    <span class="log-level-label">State</span>
+                    <select id="stateLogLevel" class="log-level-select">
+                        <option value="0">None</option>
+                        <option value="1">Error</option>
+                        <option value="2">Warn</option>
+                        <option value="3">Info</option>
+                        <option value="4">Detail</option>
+                    </select>
+                </div>
+
+                <div class="log-level-row">
+                    <span class="log-level-label">UI</span>
+                    <select id="uiLogLevel" class="log-level-select">
+                        <option value="0">None</option>
+                        <option value="1">Error</option>
+                        <option value="2">Warn</option>
+                        <option value="3">Info</option>
+                        <option value="4">Detail</option>
+                    </select>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -263,6 +308,7 @@
     <div id="status" class="status"></div>
 </div>
 
+<script src="logger.js"></script>
 <script src="options-manager.js"></script>
 <script src="popup.js"></script>
 </body>
