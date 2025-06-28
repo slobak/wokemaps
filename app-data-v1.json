@@ -35,7 +35,7 @@
             "text": "(Not For Sale)",
             "zoomStart": 3,
             "zoomLimit": 4,
-            "yOffset": 30,
+            "yOffset": 15,
             "scale": 1
         },
         {
@@ -44,7 +44,7 @@
             "text": "(Not For Sale)",
             "zoomStart": 4,
             "zoomLimit": 8,
-            "yOffset": 40,
+            "yOffset": 20,
             "scale": 1.2
         },
         {

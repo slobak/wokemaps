@@ -45,7 +45,7 @@ class MapStateWebGL {
             if (event.origin !== window.location.origin) return;
 
             if (event.data.type === 'WOKEMAPS_TILE_MOVEMENT') {
-                //xcxc do this in-page. register with the page the ID of element to style.
+                // TODO: do this in-page. register with the page the ID of element to style.
                 this.handleTileMovement(event.data.movement);
             } else if (event.data.type === 'WOKEMAPS_BASELINE_RESET') {
                 this.handleBaselineReset();
@@ -156,7 +156,7 @@ class MapStateWebGL {
      */
     handlePotentialZoomInteraction() {
         this.isPotentiallyZooming = true;
-        log.detail('state',"Potential zoom interaction - hiding overlay");
+        log.info('state',"Potential zoom interaction - hiding overlay");
 
         // Hide overlay during potential zoom
         this.mapCanvas.hideOverlay();
@@ -166,7 +166,7 @@ class MapStateWebGL {
         }
 
         this.zoomInteractionTimeout = setTimeout(() => {
-            log.detail('state',"Zoom interaction resolved - showing overlay");
+            log.info('state',"Zoom interaction resolved - showing overlay");
             this.zoomInteractionTimeout = null;
             this.isPotentiallyZooming = false;
             this.updatePositionFromUrl();

@@ -193,7 +193,11 @@
         // figure out what's happening or at least hide the canvas during movement on fractional zoom.
 
         const anchor = findAnchorTile(tileTracker.currentFrame.tiles);
-        if (!anchor) return;
+        if (!anchor) {
+            log.detail('state', "No anchor tile found in frame");
+            return;
+        }
+        log.detail('state', "Found anchor tile", anchor);
 
         tileTracker.currentFrame.anchor = anchor;
 
@@ -225,6 +229,8 @@
             const movementX = tileTracker.totalMovement.x;
             const movementY = tileTracker.totalMovement.y;
 
+            log.detail('state', `Movement [${tileTracker.totalMovement.x >= 0 ? '+' : ''}${tileTracker.totalMovement.x}, ${tileTracker.totalMovement.y >= 0 ? '+' : ''}${tileTracker.totalMovement.y}] (frame: [${frameMovement.x >= 0 ? '+' : ''}${frameMovement.x}, ${frameMovement.y >= 0 ? '+' : ''}${frameMovement.y}])`);
+
             // Send movement to isolated world
             window.postMessage({
                 type: 'WOKEMAPS_TILE_MOVEMENT',
@@ -236,8 +242,6 @@
                 overlayCanvas.style.transform =
                     `translate(${movementX / window.devicePixelRatio}px, ${-movementY / window.devicePixelRatio}px)`;
             }
-
-            log.detail('state', `Movement [${tileTracker.totalMovement.x >= 0 ? '+' : ''}${tileTracker.totalMovement.x}, ${tileTracker.totalMovement.y >= 0 ? '+' : ''}${tileTracker.totalMovement.y}] (frame: [${frameMovement.x >= 0 ? '+' : ''}${frameMovement.x}, ${frameMovement.y >= 0 ? '+' : ''}${frameMovement.y}])`);
         }
 
         tileTracker.frameBaseline = anchor;
@@ -279,14 +283,14 @@
     function handleURLChange(url) {
         const newPosition = extractMapPosition(url);
         if (newPosition) {
-            const positionChanged = !tileTracker.mapPosition ||
-                Math.abs(newPosition.lat - tileTracker.mapPosition.lat) > 0.000001 ||
-                Math.abs(newPosition.lng - tileTracker.mapPosition.lng) > 0.000001 ||
-                newPosition.zoom !== tileTracker.mapPosition.zoom;
-
-            if (positionChanged) {
-                resetBaselines(newPosition);
-            }
+            // We used to only reset baselines if the position actually changed ..
+            // but any signal that the URL changed should mean Maps has reset some state
+            // and we should reset ours.
+            // const positionChanged = !tileTracker.mapPosition ||
+            //     Math.abs(newPosition.lat - tileTracker.mapPosition.lat) > 0.000001 ||
+            //     Math.abs(newPosition.lng - tileTracker.mapPosition.lng) > 0.000001 ||
+            //     newPosition.zoom !== tileTracker.mapPosition.zoom;
+            resetBaselines(newPosition);
         }
     }
 
@@ -313,6 +317,8 @@
                 tileTracker.currentFrame.tiles.push({ x, y, width, height });
             }
 
+            log.detail('state', 'Captured scissor() call', x, y, width, height);
+
             contextData.firstScissorInFrame = false;
             return originalScissor.call(this, x, y, width, height);
         };
@@ -327,6 +333,7 @@
                 contextData.firstScissorInFrame = true;
             });
 
+            log.detail('state', 'Starting new drawing frame');
             const result = callback(timestamp);
 
             // Process frame immediately after rendering
@@ -461,7 +468,23 @@
         const zoomOutButton = document.getElementById('widget-zoom-out');
         if (target === zoomInButton || zoomInButton.contains(target) ||
             target === zoomOutButton || zoomOutButton.contains(target)) {
+            log.detail('ui', 'Clicked on zoom button');
             handlePotentialZoomInteraction(e);
+        }
+
+        if (target.getAttribute('jsaction')?.startsWith('drawer.') ||
+            target.parentNode.getAttribute('jsaction')?.startsWith('drawer.')) {
+            log.detail('ui', 'Clicked on drawer open/close');
+            // In WebGL mode the tile frame scissor coords shift a ton between drawer
+            // open and close, and then stay that way .. so we handle the transition
+            // by just resetting our baselines so the map doesn't move.
+            // We're not hiding the overlay so if the drawer is open/closed WHILE
+            // the map is still moving, there will be a brief misdraw until the URL
+            // change resets the baselines again.
+            setTimeout(() => {
+                tileTracker.frameBaseline = null;
+                resetBaselines(tileTracker.mapPosition);
+            }, 1);
         }
     }
 

@@ -91,7 +91,7 @@ class OverlayEngine {
             return;
         }
 
-        log.info('render','Redrawing labels');
+        log.detail('render','Redrawing labels');
 
         const zoom = this.mapState.zoom;
         let renderedCount = 0;
