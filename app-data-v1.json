@@ -1,6 +1,7 @@
 {
     "announcements": [{
-        "contents": "Thank you for installing! 🙏", "show-after": "2025-06-09T00:00:00Z"
+        "contents": "Thank you for installing! 🙏 You can <strong>suggest</strong> and <strong>vote</strong> on new labels at <a target=\"_blank\" href=\"https://wokemaps.org/labels\">wokemaps.org/labels</a>.",
+        "show-after": "2025-06-09T00:00:00Z"
     }],
     "labels": [
         {
@@ -53,7 +54,7 @@
             "text": "(classified doc showroom)",
             "zoomStart": 13,
             "zoomLimit": 22,
-            "xOffset": -120,
+            "xOffset": -60,
             "yOffset": 10
         },
         {
@@ -62,8 +63,8 @@
             "text": "Denali",
             "zoomStart": 9,
             "zoomLimit": 18,
-            "xOffset": -100,
-            "yOffset": -30,
+            "xOffset": -50,
+            "yOffset": -15,
             "scale": 1.8
         },
         {
@@ -72,8 +73,8 @@
             "text": "Denali",
             "zoomStart": 18,
             "zoomLimit": 22,
-            "xOffset": -100,
-            "yOffset": -60,
+            "xOffset": -50,
+            "yOffset": -30,
             "scale": 2.2
         },
         {

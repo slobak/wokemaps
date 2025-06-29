@@ -473,7 +473,7 @@
         }
 
         if (target.getAttribute('jsaction')?.startsWith('drawer.') ||
-            target.parentNode.getAttribute('jsaction')?.startsWith('drawer.')) {
+            target.parentNode?.getAttribute('jsaction')?.startsWith('drawer.')) {
             log.detail('ui', 'Clicked on drawer open/close');
             // In WebGL mode the tile frame scissor coords shift a ton between drawer
             // open and close, and then stay that way .. so we handle the transition

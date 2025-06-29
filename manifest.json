@@ -54,6 +54,7 @@
     }, {
       "matches": ["*://wokemaps.org/*", "*://*.wokemaps.org/*"],
       "js": [
+        "logger.js",
         "uuid-manager.js",
         "content-for-wokemaps.js"
       ],
