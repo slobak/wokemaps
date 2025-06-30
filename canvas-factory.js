@@ -46,7 +46,7 @@ class CanvasFactory {
             window.addEventListener('message', handleMessage);
 
             // Request canvas info from page script (in case it's already detected)
-            log.info('init', 'Requesting canvas detection from page script');
+            log.debug('init', 'Requesting canvas detection from page script');
             window.postMessage({
                 type: 'WOKEMAPS_REQUEST_CANVAS_INFO'
             }, '*');
@@ -70,13 +70,9 @@ class CanvasFactory {
      * @returns {MapState2D|MapStateWebGL}
      */
     createMapState(mapCanvas) {
-        log.info('init', `Creating MapState2D for mode: ${this.detectedMode}`);
-
         if (this.detectedMode === 'webgl') {
-            log.info('init', 'Instantiating MapStateWebGL');
             return new MapStateWebGL(mapCanvas);
         } else {
-            log.info('init', 'Instantiating MapState2D');
             return new MapState2D(mapCanvas);
         }
     }

@@ -1,88 +1,86 @@
 {
+    "compatibility": {
+        "minVersion": "0.9.7"
+    },
     "announcements": [{
         "contents": "Thank you for installing! 🙏 You can now suggest and vote on new labels at <a target=\"_blank\" href=\"https://wokemaps.org/labels\">wokemaps.org/labels</a>.",
         "show-after": "2025-06-29T00:00:00Z"
     }],
     "labels": [
         {
-            "lat": 25.334537,
-            "lng": -90.054921,
+            "target": "Gulf of America",
+            "latLng": [25.334537, -90.054921],
             "text": "Gulf of Mexico",
-            "zoomStart": 4,
-            "zoomLimit": 17,
+            "zoomLimits": [4, 17],
             "scale": 1.4
         },
         {
-            "lat": 57.7763711,
-            "lng": -101.6777294,
+            "target": "Canada",
+            "latLng": [57.7763711, -101.6777294],
             "text": "Sovereign Country of",
-            "zoomStart": 4,
-            "zoomLimit": 22,
+            "zoomLimits": [4, 22],
             "scale": 1.4,
-            "yOffset": -30
+            "offset": [0, -30]
         },
         {
-            "lat": 60.000000,
-            "lng": -112.488277,
+            "target": "Canada",
+            "latLng": [60.000000, -112.488277],
             "text": "Sovereign Country of",
-            "zoomStart": 3,
-            "zoomLimit": 4,
+            "zoomLimits": [3, 4],
             "scale": 0.9,
-            "yOffset": -15
+            "offset": [0, -15]
         },
         {
-            "lat": 65.878131,
-            "lng": -46.168587,
+            "target": "Greenland",
+            "latLng": [65.878131, -46.168587],
             "text": "(Not For Sale)",
-            "zoomStart": 3,
-            "zoomLimit": 4,
-            "yOffset": 15,
-            "scale": 1
+            "zoomLimits": [3, 4],
+            "scale": 1,
+            "offset": [0, 15]
         },
         {
-            "lat": 65.878131,
-            "lng": -46.168587,
+            "target": "Greenland",
+            "latLng": [65.878131, -46.168587],
             "text": "(Not For Sale)",
-            "zoomStart": 4,
-            "zoomLimit": 8,
-            "yOffset": 20,
-            "scale": 1.2
+            "zoomLimits": [4, 8],
+            "scale": 1.2,
+            "offset": [0, 20]
         },
         {
-            "lat": 26.6770731,
-            "lng": -80.0370038,
+            "target": "Mar-a-Lago",
+            "latLng": [26.6770731, -80.0370038],
             "text": "(classified doc showroom)",
-            "zoomStart": 13,
-            "zoomLimit": 22,
-            "xOffset": -60,
-            "yOffset": 10
+            "zoomLimits": [13, 22],
+            "offset": [-60, 10]
         },
         {
-            "lat": 63.06920,
-            "lng": -151.0070,
+            "target": "Mt. McKinley",
+            "latLng": [63.06920, -151.0070],
             "text": "Denali",
-            "zoomStart": 9,
-            "zoomLimit": 18,
-            "xOffset": -50,
-            "yOffset": -15,
-            "scale": 1.8
+            "zoomLimits": [9, 18],
+            "scale": 1.8,
+            "offset": [-50, -15]
         },
         {
-            "lat": 63.069170,
-            "lng": -151.00699,
+            "target": "Mt. McKinley",
+            "latLng": [63.069170, -151.00699],
             "text": "Denali",
-            "zoomStart": 18,
-            "zoomLimit": 22,
-            "xOffset": -50,
-            "yOffset": -30,
-            "scale": 2.2
+            "zoomLimits": [18, 22],
+            "scale": 2.2,
+            "offset": [-50, -30]
         },
         {
-            "lat": 27.3423073,
-            "lng": -82.4510727,
+            "target": "TMTG",
+            "latLng": [27.3423073, -82.4510727],
             "text": "Crypto Boiler Room",
-            "zoomStart": 13,
-            "zoomLimit": 22
+            "zoomLimits": [13, 22]
+        },
+        {
+            "target": "Saudi Consulate in Istanbul",
+            "latLng": [41.0864175, 29.0118101],
+            "text": "(Still Not Okay To\nMurder Journalists Here,\nLike Everywhere Else)",
+            "zoomLimits": [16, 22],
+            "offset": [-60, 40]
         }
     ]
 }

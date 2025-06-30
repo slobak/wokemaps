@@ -156,7 +156,7 @@ class MapStateWebGL {
      */
     handlePotentialZoomInteraction() {
         this.isPotentiallyZooming = true;
-        log.info('state',"Potential zoom interaction - hiding overlay");
+        log.debug('state',"Potential zoom interaction - hiding overlay");
 
         // Hide overlay during potential zoom
         this.mapCanvas.hideOverlay();
@@ -166,7 +166,7 @@ class MapStateWebGL {
         }
 
         this.zoomInteractionTimeout = setTimeout(() => {
-            log.info('state',"Zoom interaction resolved - showing overlay");
+            log.debug('state',"Zoom interaction resolved - showing overlay");
             this.zoomInteractionTimeout = null;
             this.isPotentiallyZooming = false;
             this.updatePositionFromUrl();
@@ -182,7 +182,7 @@ class MapStateWebGL {
         this.updatePositionFromUrl();
 
         if (this.zoomInteractionTimeout !== null) {
-            log.detail('state',"URL change during zoom interaction - resolving");
+            log.debug('state',"URL change during zoom interaction - resolving");
             clearTimeout(this.zoomInteractionTimeout);
             this.zoomInteractionTimeout = null;
             this.isPotentiallyZooming = false;

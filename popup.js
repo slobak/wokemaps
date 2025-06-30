@@ -98,7 +98,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 const value = parseInt(this.value);
                 const channel = logLevelChannels[index];
 
-                if (value >= 0 && value <= 4) {
+                if (value >= 0 && value <= 5) {
                     const currentOptions = await optionsManager.getOptions();
                     currentOptions.debug = currentOptions.debug || {};
                     currentOptions.debug.logLevels = currentOptions.debug.logLevels || {};

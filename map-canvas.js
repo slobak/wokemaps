@@ -126,7 +126,7 @@ class MapCanvas {
             canvasId: this.overlayCanvas.id
         }, '*');
 
-        log.info('init','Overlay canvas created and positioned');
+        log.debug('init','Overlay canvas created and positioned');
         return true;
     }
 
@@ -136,7 +136,7 @@ class MapCanvas {
     syncOverlaySize() {
         if (!this.mapCanvas || !this.overlayCanvas) return;
 
-        //xcxc 2d canvas style changes happen all the time / on tile loads - maybe compare to known
+        // TODO: 2d canvas style changes happen all the time / on tile loads - maybe compare to known
         // values and don't resize unless needed?
 
         const canvasRect = this.mapCanvas.getBoundingClientRect();
@@ -154,9 +154,7 @@ class MapCanvas {
         const scale = window.devicePixelRatio;
         this.overlayContext.scale(scale, scale);
 
-        //xcxc trigger need for redraw
-
-        log.info('state',`Overlay canvas resized to ${this.overlayCanvas.width}x${this.overlayCanvas.height} (display: ${canvasRect.width}x${canvasRect.height})`);
+        log.debug('state',`Overlay canvas resized to ${this.overlayCanvas.width}x${this.overlayCanvas.height} (display: ${canvasRect.width}x${canvasRect.height})`);
         this.notifyListeners('canvasResize');
     }
 
@@ -191,7 +189,7 @@ class MapCanvas {
             attributeFilter: ['style', 'width', 'height']
         });
 
-        log.info('init','Size monitoring setup for overlay canvas');
+        log.debug('init','Size monitoring setup for overlay canvas');
     }
 
     /**

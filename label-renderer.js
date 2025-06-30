@@ -27,7 +27,7 @@ class LabelRenderer {
             const font = await fontFace.load();
             document.fonts.add(font);
             this.fontLoaded = true;
-            log.info('init', "Custom font loaded successfully");
+            log.debug('init', "Custom font loaded successfully");
         } catch (err) {
             log.warn('init', "Failed to load custom font, will use fallback:", err);
             this.fontLoaded = false;
@@ -42,13 +42,12 @@ class LabelRenderer {
      */
     getLabelProperties(label) {
         return {
-            text: label.text,
+            ...label,
             color: label.color || "#000066",
             scale: label.scale || 1.0,
             rotation: label.rotation || -1.5,
             background: label.backgroundType === 'rect' ? '#ffffffb3' : '#00000000',
-            xOffset: label.xOffset || 0,
-            yOffset: label.yOffset || 0
+            offset: label.offset || [0, 0],
         };
     }
 

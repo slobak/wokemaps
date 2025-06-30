@@ -5,7 +5,8 @@ const WOKEMAPS_LOG_LEVELS = {
     ERROR: 1,
     WARN: 2,
     INFO: 3,
-    DETAIL: 4
+    DEBUG: 4,
+    DETAIL: 5
 };
 
 // Global logger implementation
@@ -51,6 +52,7 @@ const log = {
             case WOKEMAPS_LOG_LEVELS.ERROR: return 'error';
             case WOKEMAPS_LOG_LEVELS.WARN: return 'warn';
             case WOKEMAPS_LOG_LEVELS.INFO: return 'info';
+            case WOKEMAPS_LOG_LEVELS.DEBUG: return 'info';
             case WOKEMAPS_LOG_LEVELS.DETAIL: return 'log';
             default: return 'log';
         }
@@ -69,13 +71,17 @@ const log = {
         this._log(WOKEMAPS_LOG_LEVELS.INFO, channel, ...args);
     },
 
+    debug(channel, ...args) {
+        this._log(WOKEMAPS_LOG_LEVELS.DEBUG, channel, ...args);
+    },
+
     detail(channel, ...args) {
         this._log(WOKEMAPS_LOG_LEVELS.DETAIL, channel, ...args);
     },
 
     // Dynamic configuration methods
     setLevel(channel, level) {
-        if (typeof level === 'number' && level >= 0 && level <= 4) {
+        if (typeof level === 'number' && level >= 0 && level <= 5) {
             this.config[channel] = level;
             this.detail('init', `Log level for '${channel}' set to ${level}`);
         } else {

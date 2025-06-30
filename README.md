@@ -37,14 +37,12 @@ The extension uses a hybrid configuration system:
 **Label Configuration Format**:
 ```json
 {
-  "lat": 25.334537,        // Latitude coordinate for label placement
-  "lng": -90.054921,       // Longitude coordinate for label placement
+  "target": "Gulf of America",       // Short descriptive name for replacement target
+  "latLng": [25.334537,-90.054921],  // Latitude/Longitude coordinate for label placement
   "text": "Gulf of Mexico", // Display text (supports \n for multiple lines)
-  "zoomStart": 4,            // Minimum zoom level to show label
-  "zoomLimit": 16,           // Maximum zoom level to show label
+  "zoomLimits": [4, 16],    // Start/Limit zoom level to show label (start inclusive, limit exclusive)
   "scale": 1.4,            // Font size multiplier (default: 1.0)
-  "xOffset": 0,            // Horizontal pixel offset from lat/lng position
-  "yOffset": 0             // Vertical pixel offset from lat/lng position
+  "offset": [0, 0],        // (x,y) pixel offsets to display label from actual lat/lng position, zoom-independent
 }
 ```
 

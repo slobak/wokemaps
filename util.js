@@ -3,6 +3,26 @@ function randomElementId() {
     return Math.random().toString(36).substr(2, 9);
 }
 
+function versionCompare(v1, v2) {
+    const v1parts = v1.split(".").map((c) => parseInt(c, 10));
+    const v2parts = v2.split(".").map((c) => parseInt(c, 10));
+    while (v1parts && v2parts) {
+        const c1 = v1parts.shift();
+        const c2 = v2parts.shift();
+        if (c1 > c2) {
+            return 1;
+        } else if (c1 < c2) {
+            return -1;
+        }
+    }
+    if (v1parts) {
+        return 1;
+    } else if (v2parts) {
+        return -1;
+    }
+    return 0;
+}
+
 /**
  * Runs a function with exponential backoff retry logic
  * @param {Function} fn - The function to execute (should return true for success, false for retry)

@@ -80,7 +80,7 @@
         // Mark the canvas
         canvas.setAttribute('data-wokemaps-map-canvas', contextType);
 
-        log.info('init', `Selected map canvas: ${canvas.width}x${canvas.height}, ${contextType}`);
+        log.debug('init', `Selected map canvas: ${canvas.width}x${canvas.height}, ${contextType}`);
 
         // Communicate to isolated script
         communicateMapCanvasInfo();
@@ -309,7 +309,7 @@
             // Identify main canvas on first scissor activity
             if (contextData.firstScissorInFrame && !tileTracker.canvasId) {
                 tileTracker.canvasId = canvasInfo.id;
-                log.info('init', `Set ${canvasInfo.id} as main maps canvas for tile tracking`);
+                log.debug('init', `Set ${canvasInfo.id} as main maps canvas for tile tracking`);
             }
 
             // Collect scissor calls for the main canvas
@@ -365,16 +365,16 @@
 
         if (event.data.type === 'WOKEMAPS_REQUEST_CANVAS_INFO') {
             if (mapCanvasInfo) {
-                log.info('init', 'Canvas info requested and available');
+                log.debug('init', 'Canvas info requested and available');
                 communicateMapCanvasInfo();
             } else {
-                log.info('init', 'Canvas info requested but not yet detected, will send when available');
+                log.debug('init', 'Canvas info requested but not yet detected, will send when available');
             }
         }
 
         if (event.data.type === 'WOKEMAPS_REGISTER_WEBGL_OVERLAY_CANVAS') {
             const canvasId = event.data.canvasId;
-            log.info('init', `Registering overlay canvas for immediate transforms: ${canvasId}`);
+            log.debug('init', `Registering overlay canvas for immediate transforms: ${canvasId}`);
             overlayCanvas = document.getElementById(canvasId);
             if (!overlayCanvas) {
                 log.warn('init', `No overlay canvas found with id ${canvasId}`);
@@ -517,5 +517,5 @@
         resetBaselines(currentPosition);
     }
 
-    log.info('init', 'Canvas detection and tile tracking initialized');
+    log.debug('init', 'Canvas detection and tile tracking initialized');
 })();

@@ -6,7 +6,7 @@ class OverlayEngine {
         this.mapCanvas = mapCanvas;
         this.mapState = mapState;
         this.labelRenderer = labelRenderer;
-        this.allLabels = allLabels;
+        this.allLabels = allLabels.map((label) => labelRenderer.getLabelProperties(label));
     }
 
     /**
@@ -87,7 +87,7 @@ class OverlayEngine {
 
         // Skip rendering if currently zooming
         if (this.mapState.isPotentiallyZooming) {
-            log.info('render','Cannot render - missing canvas or center');
+            log.debug('render','Cannot render - missing canvas or center');
             return;
         }
 
@@ -98,7 +98,7 @@ class OverlayEngine {
 
         // Render each label that's in zoom range
         this.allLabels.forEach(label => {
-            if (zoom >= label.zoomStart && zoom < label.zoomLimit) {
+            if (zoom >= label.zoomLimits[0] && zoom < label.zoomLimits[1]) {
                 if (this.renderLabelToOverlay(label)) {
                     renderedCount++;
                 }
@@ -128,15 +128,12 @@ class OverlayEngine {
             return false; // Off screen
         }
 
-        // Get label properties
-        const labelProps = this.labelRenderer.getLabelProperties(label);
-
         // Draw the label
         this.labelRenderer.drawLabelAtPosition(
             this.mapCanvas.context,
             labelPosition.x,
             labelPosition.y,
-            labelProps
+            label
         );
 
         return true;
@@ -149,7 +146,8 @@ class OverlayEngine {
         if (!this.mapState.center) return null;
 
         // Convert label lat/lng to world pixel coordinates
-        const labelPixel = this.labelRenderer.googleMapsLatLngToPoint(label.lat, label.lng, this.mapState.zoom);
+        const labelPixel = this.labelRenderer.googleMapsLatLngToPoint(
+            label.latLng[0], label.latLng[1], this.mapState.zoom);
         const centerPixel = this.labelRenderer.googleMapsLatLngToPoint(
             this.mapState.center.lat, this.mapState.center.lng, this.mapState.zoom);
 
@@ -167,8 +165,8 @@ class OverlayEngine {
 
         // Calculate final position
         // Note: We don't apply movement offset here because that's handled by CSS transform
-        const x = canvasCenterX + worldOffsetX + (label.xOffset || 0);
-        const y = canvasCenterY + worldOffsetY + (label.yOffset || 0);
+        const x = canvasCenterX + worldOffsetX + label.offset[0];
+        const y = canvasCenterY + worldOffsetY + label.offset[1];
 
         return { x, y };
     }

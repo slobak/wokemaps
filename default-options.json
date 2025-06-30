@@ -1,7 +1,7 @@
 {
   "enableAnnouncements": true,
   "debug": {
-    "enableRemoteConfig": true,
+    "enableRemoteConfig": false,
     "enableRemoteConfigCache": true,
     "highlightGrid": false,
     "logLevels": {

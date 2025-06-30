@@ -16,6 +16,7 @@ class AppDataManager {
         if (!(data instanceof Object)) {
             throw new Error("App data is not a dictionary");
         }
+
         if (!data.labels || !(data.labels instanceof Array)) {
             throw new Error("No array `labels` found in app data");
         }
@@ -40,7 +41,7 @@ class AppDataManager {
     // Load app data from remote source
     async loadRemoteAppData() {
         try {
-            log.info('init', "Fetching fresh app data from remote source");
+            log.debug('init', "Fetching fresh app data from remote source");
             const response = await fetch(`https://wokemaps-public.s3.us-east-2.amazonaws.com/app-data-v${this.DATA_VERSION}.json`, {
                 method: 'GET',
                 cache: 'no-cache',
@@ -99,7 +100,7 @@ class AppDataManager {
             return this.appData;
         }
 
-        log.info('init', "Loading app data");
+        log.debug('init', "Loading app data");
 
         const useRemote = await this.optionsManager.getOption('debug.enableRemoteConfig', true);
         const useCache = await this.optionsManager.getOption('debug.enableRemoteConfigCache', true);

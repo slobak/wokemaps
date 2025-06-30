@@ -5,7 +5,8 @@ const WOKEMAPS_LOG_LEVELS = {
     ERROR: 1,
     WARN: 2,
     INFO: 3,
-    DETAIL: 4
+    DEBUG: 4,
+    DETAIL: 5
 };
 
 // Global logger implementation
@@ -50,6 +51,7 @@ const log = {
             case WOKEMAPS_LOG_LEVELS.ERROR: return 'error';
             case WOKEMAPS_LOG_LEVELS.WARN: return 'warn';
             case WOKEMAPS_LOG_LEVELS.INFO: return 'info';
+            case WOKEMAPS_LOG_LEVELS.DEBUG: return 'debug';
             case WOKEMAPS_LOG_LEVELS.DETAIL: return 'log';
             default: return 'log';
         }
@@ -66,6 +68,10 @@ const log = {
 
     info(channel, ...args) {
         this._log(WOKEMAPS_LOG_LEVELS.INFO, channel, ...args);
+    },
+
+    debug(channel, ...args) {
+        this._log(WOKEMAPS_LOG_LEVELS.DEBUG, channel, ...args);
     },
 
     detail(channel, ...args) {
@@ -107,10 +113,10 @@ const log = {
 
             if (event.data.type === 'WOKEMAPS_LOG_CONFIG') {
                 log.setLevels(event.data.config);
-                log.info('init', 'In-page logger configuration updated');
+                log.debug('init', 'In-page logger configuration updated');
             }
         });
-        log.info('init', 'In-page logger ready, waiting for configuration');
+        log.debug('init', 'In-page logger ready, waiting for configuration');
     }
 };
 
