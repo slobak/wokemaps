@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "#wokemaps",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "description": "Modifies Google Maps to restore progressive labels as overlays on some locations, for your relief and enjoyment.",
   "permissions": ["storage"],
   "host_permissions": [
