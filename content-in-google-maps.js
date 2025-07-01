@@ -268,13 +268,21 @@
         }, '*');
     }
 
+    /**
+     * This is a slightly different version of the same content method from UrlParser.
+     * It does not distinguish between zoom and meters, just puts them in a
+     * `magnification` field. Presently it is not used for computation on this side.
+     *
+     * @param url
+     * @returns {null|{magnification: number, lng: number, lat: number}}
+     */
     function extractMapParameters(url = window.location.href) {
-        const match = url.match(/@([-\d.]+),([-\d.]+),(\d+\.?\d*)z/);
+        const match = url.match(/@([-\d.]+),([-\d.]+),(\d+\.?\d*)[zm]/);
         if (match) {
             return {
                 lat: parseFloat(match[1]),
                 lng: parseFloat(match[2]),
-                zoom: parseFloat(match[3])
+                magnification: parseFloat(match[3])
             };
         }
         return null;
@@ -289,7 +297,7 @@
             // const positionChanged = !tileTracker.mapPosition ||
             //     Math.abs(newPosition.lat - tileTracker.mapPosition.lat) > 0.000001 ||
             //     Math.abs(newPosition.lng - tileTracker.mapPosition.lng) > 0.000001 ||
-            //     newPosition.zoom !== tileTracker.mapPosition.zoom;
+            //     newPosition.magnification !== tileTracker.mapPosition.magnification;
             resetBaselines(newPosition);
         }
     }
