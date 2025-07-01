@@ -6,7 +6,7 @@ function randomElementId() {
 function versionCompare(v1, v2) {
     const v1parts = v1.split(".").map((c) => parseInt(c, 10));
     const v2parts = v2.split(".").map((c) => parseInt(c, 10));
-    while (v1parts && v2parts) {
+    while (v1parts.length > 0 && v2parts.length > 0) {
         const c1 = v1parts.shift();
         const c2 = v2parts.shift();
         if (c1 > c2) {

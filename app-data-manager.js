@@ -17,6 +17,12 @@ class AppDataManager {
             throw new Error("App data is not a dictionary");
         }
 
+        const minVersion = data?.compatibility?.minVersion;
+        const curVersion = chrome.runtime.getManifest().version;
+        if (minVersion && versionCompare(curVersion, minVersion) < 0) {
+            throw new Error(`Current extension version ${curVersion} too old for data minimum version ${minVersion}`);
+        }
+
         if (!data.labels || !(data.labels instanceof Array)) {
             throw new Error("No array `labels` found in app data");
         }
@@ -24,18 +30,30 @@ class AppDataManager {
 
     // Load cached app data from Chrome storage
     async loadCachedAppData() {
-        const cacheSettings = await chrome.storage.local.get([this.DATA_CACHE_KEY, this.DATA_CACHE_EXPIRY_KEY]);
-        const cachedData = cacheSettings[this.DATA_CACHE_KEY];
-        const cacheExpiry = cacheSettings[this.DATA_CACHE_EXPIRY_KEY];
+        try {
+            const cacheSettings = await chrome.storage.local.get([this.DATA_CACHE_KEY, this.DATA_CACHE_EXPIRY_KEY]);
+            const cachedData = cacheSettings[this.DATA_CACHE_KEY];
+            const cacheExpiry = cacheSettings[this.DATA_CACHE_EXPIRY_KEY];
 
-        const now = Date.now();
+            const now = Date.now();
 
-        if (cachedData && cacheExpiry && now < parseInt(cacheExpiry)) {
-            log.info('init', "Using cached app data");
-            return JSON.parse(cachedData);
+            if (cachedData && cacheExpiry && now < parseInt(cacheExpiry)) {
+                log.info('init', "Using cached app data");
+                const json = JSON.parse(cachedData);
+                // Ensure cached data is still valid for this version, else we need to go fetch it anew.
+                // TODO: if we push bad data, this behavior does make us prone to a production issue
+                // where every instance tries to fetch new data every time, spiking our usage.
+                // We may need to implement a defense against that to rate limit re-fetch requests, or still
+                // honor the cache expiry even if it's broken, if it's tried once - just disable the extension
+                // until cache expires.
+                this.validateAppData(json);
+                return json;
+            }
+            return null;
+        } catch (error) {
+            log.warn('init', `Failed to load cached app data: ${error.message}`);
+            return null;
         }
-
-        return null;
     }
 
     // Load app data from remote source
