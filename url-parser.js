@@ -16,7 +16,7 @@ class URLParser {
             const zoom = parseFloat(zoomMatch[3]);
             
             if (!isNaN(lat) && !isNaN(lng) && !isNaN(zoom)) {
-                return { lat, lng, zoom };
+                return { lat, lng, zoom, mode: 'map' };
             }
         }
 
@@ -28,7 +28,7 @@ class URLParser {
             const metersVisible = parseFloat(metersMatch[3]);
             
             if (!isNaN(lat) && !isNaN(lng) && !isNaN(metersVisible)) {
-                return { lat, lng, meters: metersVisible };
+                return { lat, lng, meters: metersVisible, mode: 'satellite' };
             }
         }
 

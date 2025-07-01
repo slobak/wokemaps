@@ -89,6 +89,9 @@ class MapStateInterface {
         throw new Error('MapState.isPotentiallyZooming property must be implemented');
     }
 
+    get viewMode() {
+        throw new Error('MapState.mode property must be implemented')
+    }
 }
 
 /**

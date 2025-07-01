@@ -43,7 +43,6 @@ class LabelRenderer {
     getLabelProperties(label) {
         return {
             ...label,
-            color: label.color || "#000066",
             scale: label.scale || 1.0,
             rotation: label.rotation || -1.5,
             background: label.backgroundType === 'rect' ? '#ffffffb3' : '#00000000',
@@ -57,9 +56,10 @@ class LabelRenderer {
      * @param {number} x - X coordinate
      * @param {number} y - Y coordinate
      * @param {Object} labelProps - Label properties from getLabelProperties()
+     * @param {string} mode - 'map' or 'satellite' to specify the right style
      * @returns {Object} Label dimensions {width, height}
      */
-    drawLabelAtPosition(context, x, y, labelProps) {
+    drawLabelAtPosition(context, x, y, labelProps, mode) {
         context.save();
         const fontSize = 12 * labelProps.scale;
 
@@ -99,10 +99,21 @@ class LabelRenderer {
         context.translate(x, y);
         context.rotate(labelProps.rotation * Math.PI / 180);
 
-        context.fillStyle = labelProps.color;
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            context.fillText(line, 0, (i - (lines.length - 1) / 2.0) * lineHeight);
+        if (mode === 'satellite') {
+            context.strokeStyle = '#000033';
+            context.lineWidth = 3;
+            context.fillStyle = '#dddddd';
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                context.strokeText(line, 0, (i - (lines.length - 1) / 2.0) * lineHeight);
+                context.fillText(line, 0, (i - (lines.length - 1) / 2.0) * lineHeight);
+            }
+        } else {
+            context.fillStyle = '#000033';
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                context.fillText(line, 0, (i - (lines.length - 1) / 2.0) * lineHeight);
+            }
         }
 
         context.restore();

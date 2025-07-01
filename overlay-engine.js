@@ -107,10 +107,12 @@ class OverlayEngine {
         const zoom = this.mapState.zoom;
         let renderedCount = 0;
 
+        const mode = this.mapState.viewMode;
+
         // Render each label that's in zoom range
         this.allLabels.forEach(label => {
             if (zoom >= label.zoomLimits[0] && zoom < label.zoomLimits[1]) {
-                if (this.renderLabelToOverlay(label)) {
+                if (this.renderLabelToOverlay(label, mode)) {
                     renderedCount++;
                 }
             }
@@ -210,7 +212,7 @@ class OverlayEngine {
     /**
      * Render a single label to the overlay canvas
      */
-    renderLabelToOverlay(label) {
+    renderLabelToOverlay(label, mode) {
         log.detail('render', "rendering label", label);
         if (!this.mapState.center) return false;
 
@@ -235,7 +237,8 @@ class OverlayEngine {
             this.mapCanvas.overlayContext,
             labelPosition.x,
             labelPosition.y,
-            label
+            label,
+            mode
         );
 
         return true;

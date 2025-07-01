@@ -8,6 +8,7 @@ class MapState2D {
         // Map position and zoom
         this.center = null;
         this.zoom = 0;
+        this.viewMode = 'map';
 
         // Transform tracking
         this.canvasTransform = { translateX: 0, translateY: 0, scale: 1 };
@@ -192,6 +193,8 @@ class MapState2D {
 
         const position = URLParser.extractMapParameters();
         if (!position) return;
+
+        this.viewMode = position.mode;
 
         let hasChanges = false;
 

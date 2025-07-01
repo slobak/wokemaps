@@ -8,6 +8,7 @@ class MapStateWebGL {
         // Map position and zoom from URL
         this.center = null;
         this.zoom = 0;
+        this.viewMode = 'map';
 
         // Movement tracking (replaces transform tracking)
         this.movementOffset = { x: 0, y: 0 };
@@ -117,6 +118,8 @@ class MapStateWebGL {
     updatePositionFromUrl() {
         const position = URLParser.extractMapParameters();
         if (!position) return;
+
+        this.viewMode = position.mode;
 
         let hasChanges = false;
 
