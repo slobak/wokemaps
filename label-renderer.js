@@ -102,7 +102,7 @@ class LabelRenderer {
         if (mode === 'satellite') {
             context.strokeStyle = '#000033';
             context.lineWidth = 3;
-            context.fillStyle = '#dddddd';
+            context.fillStyle = '#ffff77';
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
                 context.strokeText(line, 0, (i - (lines.length - 1) / 2.0) * lineHeight);

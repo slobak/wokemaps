@@ -88,8 +88,11 @@ class CoordinateTransformer {
         // Adjust for latitude using mercator scale factor
         const mercatorScaleFactor = 1 / Math.cos(lat * Math.PI / 180);
         const adjustedZoom = zoomAtEquator - Math.log2(mercatorScaleFactor);
-        
-        return Math.max(0, adjustedZoom);
+
+        // Round to 2 decimal places - this will allow zooms super-close to round to become round,
+        // and allow the label to stay visible while scrolling.
+        // TODO: verify this is in fact better behavior.
+        return parseFloat(Math.max(0, adjustedZoom).toFixed(2));
     }
 }
 
