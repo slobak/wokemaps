@@ -88,6 +88,7 @@ class MapStateInterface {
     get isPotentiallyZooming() {
         throw new Error('MapState.isPotentiallyZooming property must be implemented');
     }
+
 }
 
 /**

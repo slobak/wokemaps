@@ -126,9 +126,21 @@ class MapStateWebGL {
             hasChanges = true;
         }
 
+        // Handle zoom or meters value
+        let calculatedZoom;
+        if (position.zoom !== undefined) {
+            calculatedZoom = position.zoom;
+        } else if (position.meters !== undefined) {
+            const parentDimensions = this.mapCanvas.getParentDimensions();
+            calculatedZoom = CoordinateTransformer.convertMetersToZoom(position.meters, position.lat, parentDimensions.height);
+            log.detail('state', `Converted ${position.meters}m to zoom ${calculatedZoom} (viewport: ${parentDimensions.height}px)`);
+        } else {
+            return;
+        }
+
         // Update zoom (don't round for WebGL - keep decimal precision)
-        if (this.zoom !== position.zoom) {
-            this.zoom = position.zoom;
+        if (this.zoom !== calculatedZoom) {
+            this.zoom = calculatedZoom;
             hasChanges = true;
         }
 

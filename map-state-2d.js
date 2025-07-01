@@ -201,10 +201,21 @@ class MapState2D {
             hasChanges = true;
         }
 
+        // Handle zoom or meters value
+        let calculatedZoom;
+        if (position.zoom !== undefined) {
+            calculatedZoom = Math.round(position.zoom);
+        } else if (position.meters !== undefined) {
+            const parentDimensions = this.mapCanvas.getParentDimensions();
+            calculatedZoom = Math.round(CoordinateTransformer.convertMetersToZoom(position.meters, position.lat, parentDimensions.height));
+            log.detail('state', `Converted ${position.meters}m to zoom ${calculatedZoom} (viewport: ${parentDimensions.height}px)`);
+        } else {
+            return;
+        }
+
         // Update zoom
-        const newZoom = Math.round(position.zoom);
-        if (this.zoom !== newZoom) {
-            this.zoom = newZoom;
+        if (this.zoom !== calculatedZoom) {
+            this.zoom = calculatedZoom;
             hasChanges = true;
         }
 

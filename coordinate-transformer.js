@@ -58,6 +58,39 @@ class CoordinateTransformer {
             y: toPixel.y - fromPixel.y
         };
     }
+
+    /**
+     * Convert meters visible to zoom level for satellite mode URLs
+     * @param {number} metersVisible - Meters visible in vertical extent
+     * @param {number} lat - Center latitude for mercator adjustment
+     * @param {number} viewportHeight - Viewport height in pixels
+     * @returns {number} Calculated zoom level
+     */
+    static convertMetersToZoom(metersVisible, lat, viewportHeight) {
+        // Earth's circumference at equator in meters
+        const EARTH_CIRCUMFERENCE = 40075017;
+        
+        // Web Mercator tile size in pixels
+        const TILE_SIZE = 256;
+        
+        // Calculate meters per pixel at zoom 0 at equator
+        const equatorMetersPerPixelZoom0 = EARTH_CIRCUMFERENCE / TILE_SIZE;
+        
+        // Calculate current meters per pixel
+        const currentMetersPerPixel = metersVisible / viewportHeight;
+        
+        // Calculate scale factor at equator
+        const scaleFactorAtEquator = equatorMetersPerPixelZoom0 / currentMetersPerPixel;
+        
+        // Calculate zoom level at equator
+        const zoomAtEquator = Math.log2(scaleFactorAtEquator);
+        
+        // Adjust for latitude using mercator scale factor
+        const mercatorScaleFactor = 1 / Math.cos(lat * Math.PI / 180);
+        const adjustedZoom = zoomAtEquator - Math.log2(mercatorScaleFactor);
+        
+        return Math.max(0, adjustedZoom);
+    }
 }
 
 // Export for use in other files
