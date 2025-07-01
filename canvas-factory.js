@@ -25,6 +25,8 @@ class CanvasFactory {
                 if (event.data.type === 'WOKEMAPS_MAP_CANVAS_DETECTED') {
                     window.removeEventListener('message', handleMessage);
 
+                    log.debug('init', `Received canvas info`, event.data);
+
                     const contextType = event.data.contextType;
                     this.canvasId = event.data.canvasId;
                     if (contextType === 'webgl' || contextType === 'webgl2') {
@@ -87,7 +89,7 @@ class CanvasFactory {
     async createComponents(labelRenderer, options, allLabels) {
         const mapCanvas = await this.createMapCanvas();
         const mapState = this.createMapState(mapCanvas);
-        const overlayEngine = new OverlayEngine(mapCanvas, mapState, labelRenderer, allLabels);
+        const overlayEngine = new OverlayEngine(mapCanvas, mapState, labelRenderer, allLabels, options.debug);
 
         return {
             mapCanvas,

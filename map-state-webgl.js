@@ -115,40 +115,55 @@ class MapStateWebGL {
      * Update position information from URL
      */
     updatePositionFromUrl() {
-        const url = window.location.href;
+        const position = URLParser.extractMapParameters();
+        if (!position) return;
+
         let hasChanges = false;
 
-        // Extract center coordinates
-        const centerMatch = url.match(/@([-\d.]+),([-\d.]+)/);
-        if (centerMatch && centerMatch.length >= 3) {
-            const lat = parseFloat(centerMatch[1]);
-            const lng = parseFloat(centerMatch[2]);
-
-            if (!isNaN(lat) && !isNaN(lng)) {
-                const newCenter = { lat, lng };
-                if (!this.center || this.center.lat !== lat || this.center.lng !== lng) {
-                    this.center = newCenter;
-                    hasChanges = true;
-                }
-            }
+        // Update center
+        if (!this.center || this.center.lat !== position.lat || this.center.lng !== position.lng) {
+            this.center = { lat: position.lat, lng: position.lng };
+            hasChanges = true;
         }
 
-        // Extract zoom level
-        const zoomMatch = url.match(/@[-\d.]+,[-\d.]+,(\d+\.?\d*)z/);
-        if (zoomMatch && zoomMatch.length >= 2) {
-            const zoom = parseFloat(zoomMatch[1]);
-            if (!isNaN(zoom)) {
-                if (this.zoom !== zoom) {
-                    this.zoom = zoom;
-                    hasChanges = true;
-                }
-            }
+        // Update zoom (don't round for WebGL - keep decimal precision)
+        if (this.zoom !== position.zoom) {
+            this.zoom = position.zoom;
+            hasChanges = true;
         }
 
         if (hasChanges) {
             log.detail('state', `Position updated from URL: lat:${this.center?.lat}, lng:${this.center?.lng}, zoom:${this.zoom}`);
             this.notifyListeners('position');
         }
+    }
+
+    /**
+     * Convert lat/lng to canvas pixel coordinates (WebGL mode)
+     * @param {number} lat - Latitude
+     * @param {number} lng - Longitude
+     * @returns {Object|null} Canvas coordinates {x, y} or null if error
+     */
+    mapLatLngToCanvas(lat, lng) {
+        if (!this.center) return null;
+
+        // Calculate pixel offset from center using shared coordinate transformer
+        const offset = CoordinateTransformer.calculatePixelOffset(
+            this.center.lat, this.center.lng, lat, lng, this.zoom
+        );
+        if (!offset) return null;
+
+        // Get overlay canvas center in display coordinates
+        const canvasDimensions = this.mapCanvas.getDimensions();
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        const canvasCenterX = (canvasDimensions.width / devicePixelRatio) / 2;
+        const canvasCenterY = (canvasDimensions.height / devicePixelRatio) / 2;
+
+        // Apply WebGL-specific movement offset (no tile alignment needed)
+        const x = canvasCenterX + offset.x + this.movementOffset.x;
+        const y = canvasCenterY + offset.y + this.movementOffset.y;
+
+        return { x, y };
     }
 
     /**

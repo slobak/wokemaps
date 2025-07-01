@@ -109,39 +109,6 @@ class LabelRenderer {
         return { width: totalWidth, height: totalHeight };
     }
 
-    /**
-     * Accurate Google Maps style projection with tile size parameter
-     * @param {number} lat - Latitude
-     * @param {number} lng - Longitude
-     * @param {number} zoom - Zoom level
-     * @returns {Object|null} Pixel coordinates {x, y} or null if error
-     */
-    googleMapsLatLngToPoint(lat, lng, zoom) {
-        try {
-            // First, we need the normalized coordinates between 0 and 1
-            const normX = (lng + 180) / 360;
-
-            // Convert latitude to radians for sin calculation
-            const latRad = lat * Math.PI / 180;
-
-            // Apply the Mercator projection formula
-            const mercN = Math.log(Math.tan((Math.PI / 4) + (latRad / 2)));
-            const normY = 0.5 - mercN / (2 * Math.PI);
-
-            // Scale by the world size at this zoom level
-            const scale = Math.pow(2, zoom - 1);
-            const worldSize = scale * this.mapCanvas.tileSize;
-
-            // Convert to pixel coordinates
-            const pixelX = Math.floor(normX * worldSize);
-            const pixelY = Math.floor(normY * worldSize);
-
-            return { x: pixelX, y: pixelY };
-        } catch (e) {
-            log.error('render', "Error in googleMapsLatLngToPoint:", e);
-            return null;
-        }
-    }
 }
 
 // Export for use in other files

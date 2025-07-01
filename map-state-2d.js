@@ -74,8 +74,8 @@ class MapState2D {
 
     // Update canvas transform information
     updateCanvasTransform() {
-        const canvasStyle = window.getComputedStyle(this.mapCanvas.canvas);
-        const canvasTransformStr = canvasStyle.transform || canvasStyle.webkitTransform;
+        const canvasStyle = window.getComputedStyle(this.mapCanvas.mapCanvas);
+        const canvasTransformStr = canvasStyle.transform;
 
         if (canvasTransformStr && canvasTransformStr !== 'none') {
             const transformValues = this.parseTransform(canvasTransformStr);
@@ -89,7 +89,7 @@ class MapState2D {
     // Update parent transform information
     updateParentTransform() {
         const parentStyle = window.getComputedStyle(this.mapCanvas.parent);
-        const parentTransformStr = parentStyle.transform || parentStyle.webkitTransform;
+        const parentTransformStr = parentStyle.transform;
 
         let transformValues;
         if (parentTransformStr && parentTransformStr !== 'none') {
@@ -122,7 +122,7 @@ class MapState2D {
             newTransform.scale !== oldTransform.scale;
 
         if (different) {
-            //log.detail('state', `${name} transform changes`, newTransform);
+            log.detail('state', `${name} transform changes`, newTransform);
         }
 
         return different;
@@ -190,40 +190,54 @@ class MapState2D {
             return;
         }
 
-        const url = window.location.href;
+        const position = URLParser.extractMapParameters();
+        if (!position) return;
+
         let hasChanges = false;
 
-        // Extract center coordinates
-        const centerMatch = url.match(/@([-\d.]+),([-\d.]+)/);
-        if (centerMatch && centerMatch.length >= 3) {
-            const lat = parseFloat(centerMatch[1]);
-            const lng = parseFloat(centerMatch[2]);
-
-            if (!isNaN(lat) && !isNaN(lng)) {
-                const newCenter = { lat, lng };
-                if (!this.center || this.center.lat !== lat || this.center.lng !== lng) {
-                    this.center = newCenter;
-                    hasChanges = true;
-                }
-            }
+        // Update center
+        if (!this.center || this.center.lat !== position.lat || this.center.lng !== position.lng) {
+            this.center = { lat: position.lat, lng: position.lng };
+            hasChanges = true;
         }
 
-        // Extract zoom level
-        const zoomMatch = url.match(/@[-\d.]+,[-\d.]+,(\d+\.?\d*)z/);
-        if (zoomMatch && zoomMatch.length >= 2) {
-            const zoom = parseFloat(zoomMatch[1]);
-            if (!isNaN(zoom)) {
-                const newZoom = Math.round(zoom);
-                if (this.zoom !== newZoom) {
-                    this.zoom = newZoom;
-                    hasChanges = true;
-                }
-            }
+        // Update zoom
+        const newZoom = Math.round(position.zoom);
+        if (this.zoom !== newZoom) {
+            this.zoom = newZoom;
+            hasChanges = true;
         }
 
         if (hasChanges) {
             this.notifyListeners('position');
         }
+    }
+
+    /**
+     * Convert lat/lng to canvas pixel coordinates (2D mode)
+     * @param {number} lat - Latitude
+     * @param {number} lng - Longitude
+     * @returns {Object|null} Canvas coordinates {x, y} or null if error
+     */
+    mapLatLngToCanvas(lat, lng) {
+        if (!this.center) return null;
+
+        // Calculate pixel offset from center using shared coordinate transformer
+        const offset = CoordinateTransformer.calculatePixelOffset(
+            this.center.lat, this.center.lng, lat, lng, this.zoom
+        );
+        if (!offset) return null;
+
+        // Get overlay canvas center in display coordinates
+        const parentDimensions = this.mapCanvas.getParentDimensions();
+        const canvasCenterX = parentDimensions.width / 2;
+        const canvasCenterY = parentDimensions.height / 2;
+
+        // Apply canvas transform and tile alignment
+        const x = canvasCenterX + offset.x - this.canvasTransform.translateX;
+        const y = canvasCenterY + offset.y - this.canvasTransform.translateY;
+
+        return { x, y };
     }
 
     // Handle map interactions that might result in a zoom
@@ -268,10 +282,9 @@ class MapState2D {
         this.observer = new MutationObserver((mutations) => {
             let shouldUpdateCanvasTransform = false;
             let shouldUpdateParentTransform = false;
-
             for (const mutation of mutations) {
                 if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-                    if (mutation.target === this.mapCanvas.canvas) {
+                    if (mutation.target === this.mapCanvas.mapCanvas) {
                         shouldUpdateCanvasTransform = true;
                     } else if (mutation.target === this.mapCanvas.parent) {
                         shouldUpdateParentTransform = true;
@@ -288,8 +301,8 @@ class MapState2D {
             }
         });
 
-        // Observe the canvas for attribute changes
-        this.observer.observe(this.mapCanvas.canvas, {
+        // Observe the maps canvas for attribute changes
+        this.observer.observe(this.mapCanvas.mapCanvas, {
             attributes: true,
             attributeFilter: ['style', 'width', 'height']
         });

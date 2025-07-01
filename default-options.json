@@ -1,15 +1,16 @@
 {
   "enableAnnouncements": true,
   "debug": {
-    "enableRemoteConfig": false,
+    "showDebugUi": false,
+    "enableRemoteConfig": true,
     "enableRemoteConfigCache": true,
     "highlightGrid": false,
+    "highlightCanvasOrigins": false,
     "logLevels": {
       "init": 3,
       "render": 3,
       "state": 3,
       "ui": 3
-    },
-    "showDebugUi": true
+    }
   }
 }

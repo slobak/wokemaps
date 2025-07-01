@@ -9,11 +9,15 @@ class MapCanvas {
         this.parent = null;
         this.canvasType = canvasType;
         this.canvasId = canvasId;
-        this.tileSize = 512; // WebGL typically uses 512px tiles
+        this.tileSize = canvasType === '2d' ? 256 : 512;
         this.resizeObserver = null;
         this.changeListeners = new Set();
 
-        this.detectDisplayType();
+        if (window.devicePixelRatio > 1.5) {
+            log.info('init',`Detected retina display (pixel ratio: ${devicePixelRatio})`);
+        } else {
+            log.info('init', `Detected standard display (pixel ratio: ${devicePixelRatio})`);
+        }
     }
 
     /**
@@ -105,7 +109,7 @@ class MapCanvas {
         this.overlayCanvas.id = 'wokemaps_overlay_canvas_' + randomElementId();
 
         // Get 2D context
-        this.overlayContext = this.overlayCanvas.getContext('2d', { willReadFrequently: true });
+        this.overlayContext = this.overlayCanvas.getContext('2d');
         if (!this.overlayContext) {
             log.error('init', 'Failed to get 2D context for overlay canvas');
             return false;
@@ -156,6 +160,11 @@ class MapCanvas {
 
         log.debug('state',`Overlay canvas resized to ${this.overlayCanvas.width}x${this.overlayCanvas.height} (display: ${canvasRect.width}x${canvasRect.height})`);
         this.notifyListeners('canvasResize');
+    }
+
+    setOverlayTranslate(x, y) {
+        if (!this.overlayCanvas) return;
+        this.overlayCanvas.style.transform = `translate(${x}px, ${y}px)`;
     }
 
     /**
@@ -226,20 +235,6 @@ class MapCanvas {
         return this.tryInitializeWithDetectedCanvas();
     }
 
-    // Detect display type (retina vs standard) and set parameters
-    detectDisplayType() {
-        const devicePixelRatio = window.devicePixelRatio || 1;
-
-        if (devicePixelRatio > 1.5) {
-            this.tileSize = 512;
-            log.info('init',`Detected retina display (pixel ratio: ${devicePixelRatio})`);
-        } else {
-            this.tileSize = 256;
-            // TODO: does webgl still use 512px tiles in this case?
-            log.info('init', `Detected standard display (pixel ratio: ${devicePixelRatio})`);
-        }
-    }
-
     // Check if the canvas is still valid and supported
     isValid() {
         return this.mapCanvas &&
@@ -275,6 +270,55 @@ class MapCanvas {
         return this.overlayCanvas;
     }
 
+    // Get parent div dimensions properly
+    getParentDimensions() {
+        if (!this.parent) {
+            log.warn('state', "No canvas parent found");
+            return { width: 0, height: 0 };
+        }
+
+        // Method 1: Try getBoundingClientRect first
+        const rect = this.parent.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+            log.detail('state', `Parent dimensions from getBoundingClientRect: ${rect.width}×${rect.height}`);
+            return { width: Math.round(rect.width), height: Math.round(rect.height) };
+        }
+
+        // Method 2: Try offsetWidth/Height
+        if (this.parent.offsetWidth > 0 && this.parent.offsetHeight > 0) {
+            log.detail('state', `Parent dimensions from offset: ${this.parent.offsetWidth}×${this.parent.offsetHeight}`);
+            return { width: this.parent.offsetWidth, height: this.parent.offsetHeight };
+        }
+
+        // Method 3: Try clientWidth/Height
+        if (this.parent.clientWidth > 0 && this.parent.clientHeight > 0) {
+            log.detail('state', `Parent dimensions from client: ${this.parent.clientWidth}×${this.parent.clientHeight}`);
+            return { width: this.parent.clientWidth, height: this.parent.clientHeight };
+        }
+
+        // Method 4: Get computed style
+        const computedStyle = window.getComputedStyle(this.parent);
+        const width = parseInt(computedStyle.width, 10);
+        const height = parseInt(computedStyle.height, 10);
+
+        if (!isNaN(width) && !isNaN(height) && width > 0 && height > 0) {
+            log.detail('state', `Parent dimensions from computed style: ${width}×${height}`);
+            return { width, height };
+        }
+
+        // If all else fails, check the grandparent (sometimes the map container is nested)
+        const grandParent = this.parent.parentElement;
+        if (grandParent) {
+            const grandRect = grandParent.getBoundingClientRect();
+            if (grandRect.width > 0 && grandRect.height > 0) {
+                return { width: Math.round(grandRect.width), height: Math.round(grandRect.height) };
+            }
+        }
+
+        log.warn('state', "Could not determine parent dimensions");
+        return { width: 0, height: 0 };
+    }
+
     // Cleanup
     cleanup() {
         if (this.resizeObserver) {
@@ -285,6 +329,21 @@ class MapCanvas {
         if (this.overlayCanvas && this.overlayCanvas.parentNode) {
             this.overlayCanvas.parentNode.removeChild(this.overlayCanvas);
         }
+    }
+
+    /**
+     * Applies a 2D Context transform to convert canvas coordinates
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     * @param {Object} transform - Transform matrix {a, b, c, d, e, f}
+     * @returns {Object} Transformed coordinates {x, y}
+     */
+    static applyContextTransform(x, y, transform) {
+        const { a, b, c, d, e, f } = transform;
+        return {
+            x: a * x + c * y + e,
+            y: b * x + d * y + f
+        };
     }
 }
 

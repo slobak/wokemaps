@@ -80,7 +80,7 @@
         // Mark the canvas
         canvas.setAttribute('data-wokemaps-map-canvas', contextType);
 
-        log.debug('init', `Selected map canvas: ${canvas.width}x${canvas.height}, ${contextType}`);
+        log.info('init', `Selected map canvas: ${canvas.width}x${canvas.height}, ${contextType}, ${canvasId}`);
 
         // Communicate to isolated script
         communicateMapCanvasInfo();
@@ -268,7 +268,7 @@
         }, '*');
     }
 
-    function extractMapPosition(url = window.location.href) {
+    function extractMapParameters(url = window.location.href) {
         const match = url.match(/@([-\d.]+),([-\d.]+),(\d+\.?\d*)z/);
         if (match) {
             return {
@@ -281,7 +281,7 @@
     }
 
     function handleURLChange(url) {
-        const newPosition = extractMapPosition(url);
+        const newPosition = extractMapParameters(url);
         if (newPosition) {
             // We used to only reset baselines if the position actually changed ..
             // but any signal that the URL changed should mean Maps has reset some state
@@ -338,6 +338,8 @@
 
             // Process frame immediately after rendering
             processFrame();
+
+            window.dispatchEvent(new CustomEvent('wokemaps_canvasAnimationFrameComplete', {}));
 
             return result;
         });
@@ -473,7 +475,9 @@
         }
 
         if (target.getAttribute('jsaction')?.startsWith('drawer.') ||
-            target.parentNode?.getAttribute('jsaction')?.startsWith('drawer.')) {
+            (target.parentNode &&
+                target.parentNode.getAttribute &&
+                target.parentNode.getAttribute('jsaction')?.startsWith('drawer.'))) {
             log.detail('ui', 'Clicked on drawer open/close');
             // In WebGL mode the tile frame scissor coords shift a ton between drawer
             // open and close, and then stay that way .. so we handle the transition
@@ -512,7 +516,7 @@
     });
 
     // Initialize with current URL
-    const currentPosition = extractMapPosition();
+    const currentPosition = extractMapParameters();
     if (currentPosition) {
         resetBaselines(currentPosition);
     }
