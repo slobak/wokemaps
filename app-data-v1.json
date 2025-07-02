@@ -11,7 +11,14 @@
             "target": "Gulf of America",
             "latLng": [25.334537, -90.054921],
             "text": "Gulf of Mexico",
-            "zoomLimits": [4, 17],
+            "zoomLimits": [4, 5],
+            "scale": 1.1
+        },
+        {
+            "target": "Gulf of America",
+            "latLng": [25.334537, -90.054921],
+            "text": "Gulf of Mexico",
+            "zoomLimits": [5, 17],
             "scale": 1.4
         },
         {
@@ -76,9 +83,62 @@
             "zoomLimits": [13, 22]
         },
         {
+            "target": "Camp Beauregard",
+            "latLng": [31.374749, -92.3929],
+            "text": "Louisiana National Guard\nTraining Center Pineville",
+            "zoomLimits": [13, 16],
+            "scale": 1.2
+        },
+        {
+            "target": "Fort Rucker",
+            "latLng": [31.340, -85.715380],
+            "text": "Fort Novosel",
+            "zoomLimits": [14, 16],
+            "scale": 1.5
+        },
+        {
+            "target": "Fort Rucker",
+            "latLng": [31.340, -85.715380],
+            "text": "Fort Novosel",
+            "zoomLimits": [10, 14],
+            "scale": 1.2
+        },
+        {
+            "target": "St. John's Episcopal Church",
+            "latLng": [38.900400, -77.036030],
+            "text": "(Tear Gas Not Welcome)",
+            "zoomLimits": [16, 22],
+            "scale": 1.1,
+            "offset": [0, 40]
+        },
+        {
+            "target": "The Kremlin",
+            "latLng": [55.75095, 37.617575],
+            "text": "(Not For Sharing\nTop Secret War Stuff)",
+            "zoomLimits": [14, 22],
+            "scale": 1.0,
+            "offset": [0, 50]
+        },
+        {
+            "target": "CECOT",
+            "latLng": [13.533617, -88.805112],
+            "text": "American Concentration Camp #1",
+            "zoomLimits": [14, 22],
+            "scale": 1.4,
+            "offset": [-80, 0]
+        },
+        {
+            "target": "Alligator Alcatraz",
+            "latLng": [25.901553, -81.304774],
+            "text": "American Concentration Camp #2",
+            "zoomLimits": [13, 18],
+            "scale": 1.0,
+            "offset": [0, -30]
+        },
+        {
             "target": "Saudi Consulate in Istanbul",
             "latLng": [41.0864175, 29.0118101],
-            "text": "(Still Not Okay To\nMurder Journalists Here,\nLike Everywhere Else)",
+            "text": "(Still Not Okay To\nMurder Journalists Here,\nJust Like Everywhere Else)",
             "zoomLimits": [16, 22],
             "offset": [-60, 40]
         }
