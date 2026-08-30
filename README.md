@@ -69,6 +69,20 @@ Labels appear automatically when viewing Google Maps. They:
 ### Adding Labels
 Edit `app-data-v1.json` to add new labels. Use Google Maps to find coordinates, then experiment with zoom ranges and offsets to properly align with existing features.
 
+Committing `app-data-v1.json` only updates the local fallback bundled with the extension — it does **not** change what's shown to existing users. Labels are actually served from a remote S3 object that the extension fetches at runtime and caches for a few hours (see `DATA_CACHE_DURATION` in `app-data-manager.js`), so after committing you must also publish the file:
+
+```
+scripts/publish-app-data.sh
+```
+
+This validates the file is well-formed JSON, shows which labels were added/changed/removed compared to what's currently live, and asks for confirmation before uploading. Pass `-y` to skip the confirmation prompt.
+
+Requires:
+- [AWS CLI](https://aws.amazon.com/cli/), configured (`aws configure`) with credentials authorized to write to the `wokemaps-public` S3 bucket
+- `jq` and `curl`
+
+Existing installs will pick up the change after their cache expires; new installs get it immediately.
+
 ### Key Files
 ```
 manifest.json          # Extension configuration
