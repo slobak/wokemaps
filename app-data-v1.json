@@ -8,6 +8,13 @@
     }],
     "labels": [
         {
+            "target": "Lake America",
+            "latLng": [43.622886, -77.982601],
+            "text": "Lake\nOntario",
+            "zoomLimits": [7, 22],
+            "scale": 1.1
+        },
+        {
             "target": "Gulf of America",
             "latLng": [25.334537, -90.054921],
             "text": "Gulf of Mexico",
